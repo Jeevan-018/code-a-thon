@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "text": "Predict output: x = 5; if(x > 3) print('Yes'); else print('No');",
+    "choices": ["Yes", "No", "Error", "None"],
+    "answer": 0
+  },
+  {
+    "id": 2,
+    "text": "What is the output of: for i = 1 to 3 do print(i);",
+    "choices": ["123", "111", "321", "Error"],
+    "answer": 0
+  },
+  {
+    "id": 3,
+    "text": "Find the value of sum after executing: sum = 0; for i = 1 to 5 do sum = sum + i;",
+    "choices": ["5", "10", "15", "20"],
+    "answer": 2
+  },
+  {
+    "id": 4,
+    "text": "If a = 2, b = 3, c = a + b * 2, then c = ?",
+    "choices": ["10", "8", "7", "12"],
+    "answer": 2
+  },
+  {
+    "id": 5,
+    "text": "If arr = [2,4,6,8] and loop i = 0 to 3 print(arr[i]); output will be?",
+    "choices": ["2 4 6 8", "8 6 4 2", "2468", "Both A and C"],
+    "answer": 3
+  },
+  {
+    "id": 6,
+    "text": "If x = 10 and while(x > 0) { x = x - 3 }, how many iterations execute?",
+    "choices": ["3", "4", "5", "Infinite"],
+    "answer": 1
+  },
+  {
+    "id": 7,
+    "text": "What is printed: a = 5; if(a == 5) if(a < 10) print('Small'); else print('Big');",
+    "choices": ["Small", "Big", "Error", "Nothing"],
+    "answer": 0
+  },
+  {
+    "id": 8,
+    "text": "If n = 4, factorial = 1; for i = 1 to n do factorial = factorial * i; What is factorial?",
+    "choices": ["12", "16", "24", "20"],
+    "answer": 2
+  },
+  {
+    "id": 9,
+    "text": "What will be output: a = 10; b = 20; if(a > b) print(a); else print(b);",
+    "choices": ["10", "20", "30", "Error"],
+    "answer": 1
+  },
+  {
+    "id": 10,
+    "text": "Predict output: x = 1; while(x <= 3) { print(x); x = x + 1; }",
+    "choices": ["1 2 3", "0 1 2", "2 3 4", "Infinite"],
+    "answer": 0
+  }
+]

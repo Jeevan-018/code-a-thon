@@ -1,0 +1,147 @@
+[
+  {
+    "id": 1,
+    "text": "Which data structure uses FIFO (First In First Out)?",
+    "choices": ["Stack", "Queue", "Tree", "Graph"],
+    "answer": 1
+  },
+  {
+    "id": 2,
+    "text": "Which of the following is not a linear data structure?",
+    "choices": ["Array", "Linked List", "Tree", "Stack"],
+    "answer": 2
+  },
+  {
+    "id": 3,
+    "text": "Which sorting algorithm is based on the divide and conquer technique?",
+    "choices": [
+      "Quick Sort",
+      "Bubble Sort",
+      "Insertion Sort",
+      "Selection Sort"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 4,
+    "text": "What is the time complexity of binary search?",
+    "choices": ["O(n)", "O(log n)", "O(n log n)", "O(1)"],
+    "answer": 1
+  },
+  {
+    "id": 5,
+    "text": "Which of the following data structures is non-linear?",
+    "choices": ["Stacks", "Queues", "Trees", "Lists"],
+    "answer": 2
+  },
+  {
+    "id": 6,
+    "text": "Which of the following best describes an array?",
+    "choices": [
+      "Collection of different data types",
+      "Collection of similar data types stored in contiguous memory locations",
+      "Collection of files",
+      "None of these"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 7,
+    "text": "Which of the following operations is not possible in a queue?",
+    "choices": [
+      "Insertion at rear",
+      "Deletion from front",
+      "Insertion at front",
+      "Display elements"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 8,
+    "text": "Which pointer points to the first element of an array in C?",
+    "choices": ["arr", "&arr", "arr[0]", "&arr[0]"],
+    "answer": 0
+  },
+  {
+    "id": 9,
+    "text": "Which of the following is not a valid storage class in C?",
+    "choices": ["auto", "register", "mutable", "static"],
+    "answer": 2
+  },
+  {
+    "id": 10,
+    "text": "Which traversal is used to get the contents of a binary search tree in ascending order?",
+    "choices": ["Preorder", "Inorder", "Postorder", "Level order"],
+    "answer": 1
+  },
+  {
+    "id": 11,
+    "text": "Which data structure is used for recursion?",
+    "choices": ["Stack", "Queue", "Array", "Linked List"],
+    "answer": 0
+  },
+  {
+    "id": 12,
+    "text": "What is the default return type of a function in C?",
+    "choices": ["int", "void", "float", "char"],
+    "answer": 0
+  },
+  {
+    "id": 13,
+    "text": "What is the size of an int in 32-bit GCC compiler?",
+    "choices": ["2 bytes", "4 bytes", "8 bytes", "Depends on OS"],
+    "answer": 1
+  },
+  {
+    "id": 14,
+    "text": "What is the output of printf('%d', 5/2)?",
+    "choices": ["2.5", "2", "3", "Error"],
+    "answer": 1
+  },
+  {
+    "id": 15,
+    "text": "Which of the following has the highest precedence in C?",
+    "choices": ["++", "*", "()", "&&"],
+    "answer": 2
+  },
+  {
+    "id": 16,
+    "text": "Which of these algorithms is used to find the shortest path in a weighted graph?",
+    "choices": [
+      "Prim's Algorithm",
+      "Kruskal's Algorithm",
+      "Dijkstra's Algorithm",
+      "Floyd-Warshall Algorithm"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 17,
+    "text": "Which keyword is used to prevent modification of a variable in C?",
+    "choices": ["static", "volatile", "const", "immutable"],
+    "answer": 2
+  },
+  {
+    "id": 18,
+    "text": "Which of the following is a LIFO structure?",
+    "choices": ["Stack", "Queue", "Linked List", "Graph"],
+    "answer": 0
+  },
+  {
+    "id": 19,
+    "text": "Which function is used to dynamically allocate memory in C?",
+    "choices": ["malloc()", "alloc()", "new()", "calloc()"],
+    "answer": 0
+  },
+  {
+    "id": 20,
+    "text": "Which of the following operations has the highest time complexity for a linked list?",
+    "choices": [
+      "Insertion at beginning",
+      "Insertion at end",
+      "Accessing middle element",
+      "Traversal"
+    ],
+    "answer": 2
+  }
+]

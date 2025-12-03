@@ -1,0 +1,41 @@
+[
+  {
+    "id": 1,
+    "title": "Sum of Two Numbers",
+    "description": "Write a program that reads two integers and prints their sum.",
+    "sampleInput": "3 4",
+    "expectedOutput": "7",
+    "languageSupport": ["C", "C++", "Java", "Python"],
+    "testCases": [
+      { "input": "3 4", "expectedOutput": "7" },
+      { "input": "-2 5", "expectedOutput": "3" },
+      { "input": "100 250", "expectedOutput": "350" }
+    ]
+  },
+  {
+    "id": 2,
+    "title": "Check Prime Number",
+    "description": "Write a program to check whether a given number is prime or not.",
+    "sampleInput": "7",
+    "expectedOutput": "Prime",
+    "languageSupport": ["C", "C++", "Java", "Python"],
+    "testCases": [
+      { "input": "7", "expectedOutput": "Prime" },
+      { "input": "8", "expectedOutput": "Not Prime" },
+      { "input": "97", "expectedOutput": "Prime" }
+    ]
+  },
+  {
+    "id": 3,
+    "title": "Reverse a String",
+    "description": "Write a program to reverse a given string.",
+    "sampleInput": "hello",
+    "expectedOutput": "olleh",
+    "languageSupport": ["C", "C++", "Java", "Python"],
+    "testCases": [
+      { "input": "hello", "expectedOutput": "olleh" },
+      { "input": "Code", "expectedOutput": "edoC" },
+      { "input": "racecar", "expectedOutput": "racecar" }
+    ]
+  }
+]
