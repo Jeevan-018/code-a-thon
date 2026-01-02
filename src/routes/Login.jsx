@@ -33,6 +33,8 @@ function Login() {
       // Clear previous data for a fresh session
       localStorage.removeItem("completedSections");
       localStorage.removeItem("disqualified");
+      localStorage.removeItem("exam_answers");
+      localStorage.removeItem("exam_code");
 
       // Persist candidate identity
       localStorage.setItem("candidate_id", data.candidate?.id || id);

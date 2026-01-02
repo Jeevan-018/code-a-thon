@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import Editor from "@monaco-editor/react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   ALLOW_FINAL_FLAG,
@@ -33,14 +34,32 @@ function Exam() {
     SECTION_CONFIG[initialSectionRef.current].duration
   );
   const [questions, setQuestions] = useState([]);
-  const [answers, setAnswers] = useState({});
+  const [answers, setAnswers] = useState(() => {
+    const saved = localStorage.getItem("exam_answers");
+    return saved ? JSON.parse(saved) : {};
+  });
+  
+  // Auto-save answers
+  useEffect(() => {
+    localStorage.setItem("exam_answers", JSON.stringify(answers));
+  }, [answers]);
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0); // MCQ index
   const [currentCodeIndex, setCurrentCodeIndex] = useState(0);
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(() => {
+    return localStorage.getItem("exam_code") || "";
+  });
+
+  // Auto-save code
+  useEffect(() => {
+    localStorage.setItem("exam_code", code);
+  }, [code]);
+
   const [output, setOutput] = useState("");
   const [testResults, setTestResults] = useState(null);
   const testCasePanelRef = useRef(null);
   const [language, setLanguage] = useState("Python");
+  const [theme, setTheme] = useState("vs-dark");
   const [dqMessage, setDqMessage] = useState("");
   const [isDisqualified, setIsDisqualified] = useState(false);
   const disqualifiedRef = useRef(false);
@@ -98,7 +117,7 @@ function Exam() {
 
   // Helper: submit data for a specific section to MongoDB
   const submitSectionData = useCallback(
-    async (sectionId) => {
+    async (sectionId, specificAnswers = null) => {
       const candidateId = localStorage.getItem("candidate_id") || "anonymous";
       const disqualified = localStorage.getItem("disqualified") === "true";
 
@@ -114,12 +133,22 @@ function Exam() {
       };
 
       if (sectionId === "C") {
+        const finalAnswers = specificAnswers || answers.C || {};
+        
+        // Calculate basic score for Section C (e.g., based on passed tests)
+        let totalScore = 0;
+        Object.values(finalAnswers).forEach((ans) => {
+             // Assuming 10 points per question if passed is true (simplified)
+             // You can adjust logic. If test results exist, check how many passed?
+             if (ans.passed) totalScore += 10;
+        });
+
         payload = {
           ...payload,
-          answers: {},
-          code,
-          language,
-          score: 0,
+          answers: finalAnswers, // Store the full object map
+          code: JSON.stringify(finalAnswers), // Store stringified version as backup
+          language, // Last used language
+          score: totalScore,
         };
       } else {
         payload = {
@@ -159,6 +188,16 @@ function Exam() {
     [navigate]
   );
 
+  const [isFullScreen, setIsFullScreen] = useState(true);
+
+  const requestFullScreen = () => {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error("Error attempting to enable full-screen mode:", err);
+      });
+    }
+  };
+
   useEffect(() => {
     const handleContextMenu = (e) => e.preventDefault();
     const handleCopyCutPaste = (e) => e.preventDefault();
@@ -191,13 +230,26 @@ function Exam() {
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    const handleWindowBlur = () => {
-      handleViolation("🚫 Disqualified! You switched tabs or minimized the window too many times.");
+    // Removed blur listener to prevent false positives when clicking outside or losing focus momentarily
+    // window.addEventListener("blur", handleWindowBlur);
+    // window.addEventListener("pagehide", handleWindowBlur);
+
+    // Enforce Full Screen
+    const checkFullScreen = () => {
+      const isFs = !!document.fullscreenElement;
+      setIsFullScreen(isFs);
     };
-    window.addEventListener("blur", handleWindowBlur);
-    window.addEventListener("pagehide", handleWindowBlur);
+    document.addEventListener("fullscreenchange", checkFullScreen);
+    checkFullScreen();
 
     const handleKeyDown = (e) => {
+      if (e.key === "Escape" || e.code === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return;
+      }
+
       if (
         //e.ctrlKey ||
         e.metaKey ||
@@ -206,10 +258,10 @@ function Exam() {
         (e.ctrlKey && e.key === "r")
       ) {
         e.preventDefault();
-        alert("⚠️ Shortcut keys are disabled during the test.");
+        handleViolation("⚠️ Shortcut keys are disabled during the test.");
       }
     };
-    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
 
     return () => {
       document.removeEventListener("contextmenu", handleContextMenu);
@@ -217,9 +269,10 @@ function Exam() {
       document.removeEventListener("cut", handleCopyCutPaste);
       document.removeEventListener("paste", handleCopyCutPaste);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("blur", handleWindowBlur);
-      window.removeEventListener("pagehide", handleWindowBlur);
-      document.removeEventListener("keydown", handleKeyDown);
+      // window.removeEventListener("blur", handleWindowBlur);
+      // window.removeEventListener("pagehide", handleWindowBlur);
+      document.removeEventListener("fullscreenchange", checkFullScreen);
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
   }, [disqualifyCandidate, section, submitSectionData]);
 
@@ -356,15 +409,44 @@ function Exam() {
       markSectionCompleted("B");
       transitionToSection("C");
     } else if (section === "C") {
+      // Capture current state for the question
+      const currentQ = questions[currentCodeIndex];
+      const isPassed = testResults ? testResults.every((r) => r.passed) : false; // Naive check
+      
+      const currentAnswerData = {
+          code,
+          language,
+          testResults,
+          passed: isPassed,
+          timestamp: new Date().toISOString()
+      };
+
+      // Calculate updated answers locally
+      const updatedSectionC = { 
+          ...(answers.C || {}), 
+          [currentQ.id]: currentAnswerData 
+      };
+
+      // Update React state
+      setAnswers((prev) => ({
+          ...prev,
+          C: updatedSectionC
+      }));
+
       if (currentCodeIndex < questions.length - 1) {
         setCurrentCodeIndex((idx) => idx + 1);
+        
+        // Check if we have a saved answer for the next question to restore?
+        // For now, we clear it as per original design.
         setCode("");
         setOutput("");
         setTestResults(null);
       } else {
         markSectionCompleted("C");
         setTestResults(null);
-        submitSectionData("C").finally(() => {
+        
+        // Submit using the explicitly updated object to ensure the last question is included
+        submitSectionData("C", updatedSectionC).finally(() => {
           setNavigationFlag(ALLOW_SECTIONS_FLAG);
           navigate("/sections");
         });
@@ -387,7 +469,52 @@ function Exam() {
   // ===============================
   // Simulated code execution
   // ===============================
-  const handleRunCode = () => {
+  // ===============================
+  // REAL CODE EXECUTION (Piston API)
+  // ===============================
+  const [isRunning, setIsRunning] = useState(false);
+
+  const runPistonTest = async (sourceCode, lang, stdinInput) => {
+    // Basic mapping for Piston API
+    const langMap = {
+      Python: "python",
+      Java: "java",
+      C: "c",
+      "C++": "c++",
+    };
+    
+    // Default to python if unknown or "Python"
+    const language = langMap[lang] || "python"; 
+    const version = language === "python" ? "3.10.0" : "*";
+
+    try {
+      const response = await fetch("https://emkc.org/api/v2/piston/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          language: language,
+          version: version,
+          files: [{ content: sourceCode }],
+          stdin: stdinInput,
+        }),
+      });
+      const data = await response.json();
+      // Piston returns { run: { stdout: "...", stderr: "...", ... } }
+      // We rely on stdout for checking correctness
+      if (data.run) {
+        return {
+          output: data.run.stdout ? data.run.stdout.trim() : "",
+          error: data.run.stderr ? data.run.stderr.trim() : null,
+        };
+      }
+      return { output: "", error: "No output returned" };
+    } catch (err) {
+      console.error("Piston API Error:", err);
+      return { output: "", error: "Execution failed (Network/API)" };
+    }
+  };
+
+  const handleRunCode = async () => {
     if (code.trim() === "") {
       setOutput("⚠️ Please write some code first!");
       setTestResults(null);
@@ -401,13 +528,50 @@ function Exam() {
       return;
     }
 
-    const results = runMockTestCases(currentCode, code);
-    setTestResults(results);
-    const passedCount = results.filter((tc) => tc.passed).length;
-    if (passedCount === results.length) {
-      setOutput("✅ All test cases passed.");
-    } else {
-      setOutput(`⚠️ ${passedCount}/${results.length} test cases passed.`);
+    setIsRunning(true);
+    setOutput("⏳ Running code against test cases...");
+    setTestResults(null); // clear previous results
+
+    try {
+      const results = [];
+      let allPassed = true;
+
+      for (let i = 0; i < cases.length; i++) {
+        const testCase = cases[i];
+        const { output: actualOutput, error } = await runPistonTest(
+          code,
+          language,
+          testCase.input
+        );
+
+        // Simple string comparison (trim logic already applied)
+        // If there's a stderr, we mark passed=false (unless expected output matches error? unlikely)
+        const passed = !error && actualOutput === testCase.expectedOutput;
+        
+        if (!passed) allPassed = false;
+
+        results.push({
+          id: i + 1,
+          input: testCase.input,
+          expectedOutput: testCase.expectedOutput,
+          actualOutput: error ? `Error: ${error}` : actualOutput,
+          passed,
+        });
+      }
+
+      setTestResults(results);
+
+      if (allPassed) {
+        setOutput("✅ All test cases passed!");
+      } else {
+        const passedCount = results.filter((r) => r.passed).length;
+        setOutput(`⚠️ ${passedCount}/${results.length} test cases passed.`);
+      }
+    } catch (e) {
+      console.error(e);
+      setOutput("❌ Error running tests. Check console or internet connection.");
+    } finally {
+      setIsRunning(false);
     }
   };
 
@@ -422,42 +586,6 @@ function Exam() {
       });
     }
   }, [testResults]);
-
-  const runMockTestCases = (question, userCode) => {
-    const normalisedCode = userCode.toLowerCase();
-    const evaluator = (qid) => {
-      if (qid === 1) {
-        return (
-          normalisedCode.includes("+") ||
-          normalisedCode.includes("sum") ||
-          normalisedCode.includes("add")
-        );
-      }
-      if (qid === 2) {
-        return (
-          normalisedCode.includes("%") &&
-          (normalisedCode.includes("for") || normalisedCode.includes("while"))
-        );
-      }
-      if (qid === 3) {
-        return (
-          normalisedCode.includes("reverse") ||
-          normalisedCode.includes("[::-1]") ||
-          normalisedCode.includes("strrev") ||
-          normalisedCode.includes(".length - 1")
-        );
-      }
-      return normalisedCode.length > 20;
-    };
-
-    const passesPattern = evaluator(question?.id);
-    return (question?.testCases || []).map((tc, idx) => ({
-      id: idx + 1,
-      input: tc.input,
-      expectedOutput: tc.expectedOutput,
-      passed: passesPattern && userCode.trim().length > 0,
-    }));
-  };
 
   // ===============================
   // Render UI
@@ -783,27 +911,38 @@ function Exam() {
           </div>
         ) : (
           <div className="coding-shell">
-            <header className="coding-topbar">
-              <div className="coding-brand">
+            <header className="coding-topbar" style={{ gap: "24px" }}>
+              {/* Left Side: Branding (Aligns with Problem Panel) */}
+              <div className="coding-brand" style={{ flex: 1 }}>
                 <span className="brand-pill">Code-A-Thon</span>
                 <div className="challenge-meta">
                   <p className="challenge-label">Coding Assessment</p>
                   <h3>{currentCode.title || "Logic Challenge"}</h3>
                 </div>
               </div>
-              <div className="coding-controls">
-                <div className="language-switch">
-                  <span>Language</span>
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                  >
-                    <option>Python</option>
-                    <option>C</option>
-                    <option>C++</option>
-                    <option>Java</option>
-                  </select>
+
+              {/* Right Side: Controls (Aligns with Editor Panel) */}
+              <div className="coding-controls" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                  {/* Language Switcher (Green Box) */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ color: "#cbd5e1" }}>Language</span>
+                    <select
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
+                      style={{ margin: 0 }}
+                    >
+                      <option>Python</option>
+                      <option>C</option>
+                      <option>C++</option>
+                      <option>Java</option>
+                    </select>
+                  </div>
+
+
                 </div>
+
+                {/* Question Progress (Far Right) */}
                 <div className="question-progress">
                   Question {currentCodeIndex + 1} / {questions.length}
                 </div>
@@ -837,21 +976,31 @@ function Exam() {
                 </div>
               </section>
 
-              <section className="editor-panel">
-                <textarea
-                  className="code-textarea"
-                  rows="20"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="// Write your code here"
-                />
+              <section className="editor-panel" style={{ overflowY: "auto", paddingRight: "8px" }}>
+                <div style={{ minHeight: "400px", border: "1px solid #334155", borderRadius: "8px", overflow: "hidden", flexShrink: 0 }}>
+                  <Editor
+                    height="100%"
+                    language={language.toLowerCase()}
+                    theme={theme}
+                    value={code}
+                    onChange={(value) => setCode(value || "")}
+                    options={{
+                      minimap: { enabled: false },
+                      fontSize: 14,
+                      scrollBeyondLastLine: false,
+                      automaticLayout: true,
+                    }}
+                  />
+                </div>
                 <div className="editor-actions">
                   <button
                     type="button"
                     className="run-btn"
                     onClick={handleRunCode}
+                    disabled={isRunning}
+                    style={{ opacity: isRunning ? 0.7 : 1, cursor: isRunning ? "wait" : "pointer" }}
                   >
-                    Run Code
+                    {isRunning ? "Running..." : "Run Code"}
                   </button>
                 </div>
                 <div className="output-panel">

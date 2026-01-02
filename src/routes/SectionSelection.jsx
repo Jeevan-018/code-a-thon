@@ -82,19 +82,16 @@ function SectionSelection() {
     window.addEventListener("blur", handleWindowBlur);
     window.addEventListener("pagehide", handleWindowBlur);
 
-    const handleFullscreenChange = () => {
-      if (document.fullscreenElement) {
-        if (document.exitFullscreen) {
-          document.exitFullscreen().catch(() => {});
-        }
-        disqualifyAndExit(
-          "🚫 Fullscreen mode is not allowed during the test."
-        );
-      }
-    };
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    // Removed fullscreen restriction as per request
 
     const handleKeyDown = (e) => {
+      if (e.key === "Escape" || e.code === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return;
+      }
+      
       if (
         e.key === "F11" ||
         e.ctrlKey ||
@@ -106,7 +103,7 @@ function SectionSelection() {
         e.preventDefault();
       }
     };
-    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
 
     return () => {
       document.removeEventListener("contextmenu", handleContextMenu);
@@ -116,10 +113,12 @@ function SectionSelection() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("pagehide", handleWindowBlur);
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-      document.removeEventListener("keydown", handleKeyDown);
+      // document.removeEventListener("fullscreenchange", handleFullscreenChange); // Removed
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
   }, []);
+
+
 
   const sections = [
     {
@@ -162,6 +161,14 @@ function SectionSelection() {
 
   const handleFinalSubmit = () => {
     if (!allCompleted) return;
+    
+    // Exit full screen
+    if (document.exitFullscreen) {
+      document.exitFullscreen().catch((err) => {
+        console.error("Error attempting to exit full-screen mode:", err);
+      });
+    }
+
     setNavigationFlag(ALLOW_FINAL_FLAG);
     navigate("/final");
   };

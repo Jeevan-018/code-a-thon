@@ -2,11 +2,18 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const CREDENTIALS_FILE = path.join(__dirname, "credentials.json");
 
 // ✅ Connect MongoDB
 mongoose
@@ -14,7 +21,15 @@ mongoose
   .then(() => console.log("✅ MongoDB Connected"))
   .catch((err) => console.error("❌ MongoDB Connection Error:", err));
 
-// ✅ Define schemas
+// ✅ Define User Schema
+const userSchema = new mongoose.Schema({
+  candidateId: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  name: { type: String },
+});
+const User = mongoose.model("User", userSchema);
+
+// ✅ Define Result Schema
 const resultSchema = new mongoose.Schema({
   candidateId: { type: String, required: true, index: true },
   answers: { type: Object, default: {} },
@@ -29,37 +44,51 @@ const resultSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
-
-
-
 const Result = mongoose.model("Result", resultSchema);
 
-const credentialSchema = new mongoose.Schema({
-  candidateId: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  name: { type: String, default: "" },
-});
-
-const Credential = mongoose.model("Credential", credentialSchema);
-
-async function seedCredentials() {
+// ✅ Seed Users / Migrate from File
+async function seedUsers() {
   try {
-    const count = await Credential.countDocuments();
-    if (count === 0) {
-      await Credential.insertMany([
-        { candidateId: "candidate1", password: "password123", name: "Candidate One" },
-        { candidateId: "candidate2", password: "password123", name: "Candidate Two" },
-        { candidateId: "candidate3", password: "password123", name: "Candidate Three" },
-        { candidateId: "admin", password: "admin123", name: "Administrator" },
-      ]);
-      console.log("✅ Seeded default login credentials");
+    const userCount = await User.countDocuments();
+    if (userCount === 0) {
+      console.log("ℹ️ No users found in MongoDB. Attempting migration...");
+      let usersToSeed = [];
+
+      // Try reading from file
+      if (fs.existsSync(CREDENTIALS_FILE)) {
+        try {
+          const fileData = fs.readFileSync(CREDENTIALS_FILE, "utf8");
+          const fileUsers = JSON.parse(fileData);
+          if (Array.isArray(fileUsers)) {
+            usersToSeed = fileUsers;
+            console.log(`✅ Found ${usersToSeed.length} users in credentials.json`);
+          }
+        } catch (fileErr) {
+          console.error("⚠️ Error reading credentials.json:", fileErr.message);
+        }
+      }
+
+      // If no file users, use default admin
+      if (usersToSeed.length === 0) {
+        usersToSeed.push({
+          candidateId: "MCA@ADMIN",
+          password: process.env.ADMIN_PASSWORD || "Admin@MCA",
+          name: "MCA Admin",
+        });
+        console.log("ℹ️ Using default admin credentials.");
+      }
+
+      await User.insertMany(usersToSeed);
+      console.log("✅ Users successfully migrated to MongoDB.");
+    } else {
+      console.log("✅ Users already exist in MongoDB.");
     }
   } catch (err) {
-    console.error("❌ Failed to seed credentials:", err);
+    console.error("❌ Failed to seed users:", err);
   }
 }
 
-seedCredentials();
+seedUsers();
 
 // ✅ API route to store/update results
 app.post("/api/submit", async (req, res) => {
@@ -151,16 +180,18 @@ app.post("/api/login", async (req, res) => {
         .json({ error: "candidateId and password are required" });
     }
 
-    const credential = await Credential.findOne({ candidateId });
-    if (!credential || credential.password !== password) {
+    // Find user in MongoDB
+    const user = await User.findOne({ candidateId });
+
+    if (!user || user.password !== password) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
     res.status(200).json({
       message: "Login successful",
       candidate: {
-        id: credential.candidateId,
-        name: credential.name || credential.candidateId,
+        id: user.candidateId,
+        name: user.name || user.candidateId,
       },
     });
   } catch (err) {
@@ -199,7 +230,11 @@ app.get("/", (req, res) => {
   res.send("Server running successfully");
 });
 
-const PORT = 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+const PORT = process.env.SERVER_PORT || 5001;
 
+// Only listen if run directly (not imported by Vercel)
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+}
 
+export default app;

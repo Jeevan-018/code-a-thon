@@ -20,17 +20,6 @@ function NavigationBlocker() {
   const isNavigatingRef = useRef(false);
 
   useEffect(() => {
-    // Do NOT block navigation on public pages like Welcome and Login.
-    const isPublicPage =
-      location.pathname === "/" ||
-      location.pathname === "/rules" ||
-      location.pathname === "/login" ||
-      location.pathname === "/admin-login" ||
-      location.pathname === "/admin/results";
-    if (isPublicPage) {
-      return;
-    }
-
     // Update current path reference
     currentPathRef.current = location.pathname;
     
@@ -74,6 +63,18 @@ function NavigationBlocker() {
 
     window.addEventListener("keydown", handleKeyDown, true);
 
+    // Block mouse buttons (Back/Forward)
+    const handleMouseUp = (e) => {
+      // Button 3 is "Back", Button 4 is "Forward"
+      if (e.button === 3 || e.button === 4) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.warn("⚠️ Mouse navigation buttons are disabled.");
+      }
+    };
+
+    window.addEventListener("mouseup", handleMouseUp, true);
+
     // Monitor URL changes and prevent unauthorized navigation
     const checkUrl = () => {
       const currentUrl = window.location.pathname + window.location.search;
@@ -81,6 +82,19 @@ function NavigationBlocker() {
       
       if (currentUrl !== expectedUrl && !isNavigatingRef.current) {
         const currentPath = window.location.pathname;
+
+        // Allow public pages explicitly
+        if (
+          currentPath === "/" ||
+          currentPath === "/rules" ||
+          currentPath === "/login" ||
+          currentPath === "/admin-login" ||
+          currentPath === "/admin/results"
+        ) {
+          currentPathRef.current = currentPath;
+          return;
+        }
+
         const flagKey = SAFE_ROUTE_FLAGS[currentPath];
 
         if (flagKey && consumeNavigationFlag(flagKey)) {
@@ -119,6 +133,7 @@ function NavigationBlocker() {
       window.removeEventListener("popstate", handlePopState);
       window.removeEventListener("hashchange", handleHashChange);
       window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("mouseup", handleMouseUp, true);
       document.removeEventListener("keydown", handleAddressBar, true);
       clearInterval(urlChecker);
     };

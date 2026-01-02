@@ -19,6 +19,14 @@ function Rules() {
       alert("⚠️ Please agree to the rules before starting the test.");
       return;
     }
+    
+    // Request full screen
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error("Error attempting to enable full-screen mode:", err);
+      });
+    }
+
     setNavigationFlag(ALLOW_SECTIONS_FLAG);
     navigate("/sections", { replace: true });
   };
