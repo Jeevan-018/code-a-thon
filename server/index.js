@@ -230,11 +230,10 @@ app.get("/", (req, res) => {
   res.send("Server running successfully");
 });
 
-const PORT = process.env.SERVER_PORT || 5001;
+const PORT = process.env.PORT || 5000;
 
-// Only listen if run directly (not imported by Vercel)
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-}
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
 
 export default app;
