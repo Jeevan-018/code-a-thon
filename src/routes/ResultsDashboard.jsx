@@ -11,7 +11,7 @@ const ResultsDashboard = () => {
 
   const fetchResults = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL || "http://localhost:5001"}/api/results`);
+      const response = await axios.get(`${process.env.REACT_APP_API_URL || "https://code-a-thon.onrender.com"}/api/results`);
       setResults(response.data);
       setLoading(false);
     } catch (err) {

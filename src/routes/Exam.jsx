@@ -67,7 +67,7 @@ function Exam() {
   const [showWarning, setShowWarning] = useState(false);
   const warningCountRef = useRef(0);
   const handleNextSectionRef = useRef(null);
-  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+  const API_BASE = process.env.REACT_APP_API_URL || "https://code-a-thon.onrender.com";
 
   useEffect(() => {
     const requestedSection = getSectionFromSearch(location.search);
