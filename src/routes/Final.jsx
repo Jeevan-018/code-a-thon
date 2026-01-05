@@ -1,7 +1,21 @@
-import React from "react";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 function Final() {
+  const navigate = useNavigate();
   const candidate = localStorage.getItem("candidate_id") || "Candidate";
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleGoHome = () => {
+    // Clear relevant session data to allow re-login if needed
+    localStorage.removeItem("candidate_id");
+    localStorage.removeItem("candidate_name");
+    localStorage.removeItem("exam_answers");
+    localStorage.removeItem("exam_code");
+    localStorage.removeItem("completedSections");
+    localStorage.removeItem("disqualified");
+    navigate("/");
+  };
 
   return (
     <div
@@ -88,10 +102,39 @@ function Final() {
             fontSize: "14px",
             color: "#8b92b0",
             marginTop: "20px",
+            marginBottom: "30px",
           }}
         >
           You may now close this window.
         </p>
+
+        <button
+          onClick={handleGoHome}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          style={{
+            padding: "14px 40px",
+            fontSize: "18px",
+            fontWeight: "600",
+            color: "#ffffff",
+            background: isHovered 
+              ? "linear-gradient(90deg, #764ba2 0%, #667eea 100%)" 
+              : "linear-gradient(90deg, #667eea 0%, #764ba2 100%)",
+            border: "none",
+            borderRadius: "12px",
+            cursor: "pointer",
+            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            boxShadow: isHovered 
+              ? "0 10px 25px rgba(102, 126, 234, 0.4)" 
+              : "0 4px 12px rgba(0, 0, 0, 0.2)",
+            transform: isHovered ? "translateY(-2px) scale(1.02)" : "translateY(0) scale(1)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          <span>🏠</span> Go to Home
+        </button>
       </div>
 
       <style>

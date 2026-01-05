@@ -117,7 +117,7 @@ function Exam() {
 
   // Helper: submit data for a specific section to MongoDB
   const submitSectionData = useCallback(
-    async (sectionId, specificAnswers = null) => {
+    async (sectionId, customPayload = {}) => {
       const candidateId = localStorage.getItem("candidate_id") || "anonymous";
       const disqualified = localStorage.getItem("disqualified") === "true";
 
@@ -126,39 +126,25 @@ function Exam() {
         section: sectionId,
         disqualified,
         warningCount: warningCountRef.current,
-        answers: {},
-        code: "",
-        language: "",
-        score: 0,
+        answers: customPayload.answers || answers[sectionId] || {},
+        code: customPayload.code || "",
+        language: customPayload.language || language,
+        score: customPayload.score !== undefined ? customPayload.score : (sectionId === "C" ? 0 : calculateSectionScore(sectionId)),
+        output: customPayload.output || "",
       };
 
-      if (sectionId === "C") {
-        const finalAnswers = specificAnswers || answers.C || {};
-        
-        // Calculate basic score for Section C (e.g., based on passed tests)
-        let totalScore = 0;
-        Object.values(finalAnswers).forEach((ans) => {
-             // Assuming 10 points per question if passed is true (simplified)
-             // You can adjust logic. If test results exist, check how many passed?
-             if (ans.passed) totalScore += 10;
+      // If it's section C and score wasn't explicitly provided, calculate it from the (potentially updated) answers
+      if (sectionId === "C" && customPayload.score === undefined) {
+        const sectionCAnswers = payload.answers || {};
+        let totalScoreC = 0;
+        Object.values(sectionCAnswers).forEach((ans) => {
+          if (ans.passed) totalScoreC += 10;
         });
-
-        payload = {
-          ...payload,
-          answers: finalAnswers, // Store the full object map
-          code: JSON.stringify(finalAnswers), // Store stringified version as backup
-          language, // Last used language
-          score: totalScore,
-        };
-      } else {
-        payload = {
-          ...payload,
-          answers: answers[sectionId] || {},
-          score: calculateSectionScore(sectionId),
-        };
+        payload.score = totalScoreC;
       }
 
       try {
+        console.log("📤 Sending result payload:", payload);
         const res = await fetch(`${API_BASE}/api/submit`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -172,7 +158,7 @@ function Exam() {
         console.error(`⚠️ Error saving section ${sectionId} data:`, err);
       }
     },
-    [answers, code, language, API_BASE, calculateSectionScore]
+    [answers, language, API_BASE, calculateSectionScore]
   );
 
   const disqualifyCandidate = useCallback(
@@ -446,7 +432,15 @@ function Exam() {
         setTestResults(null);
         
         // Submit using the explicitly updated object to ensure the last question is included
-        submitSectionData("C", updatedSectionC).finally(() => {
+        let finalSectionCScore = 0;
+        Object.values(updatedSectionC).forEach(ans => {
+          if (ans.passed) finalSectionCScore += 10;
+        });
+
+        submitSectionData("C", {
+          answers: updatedSectionC,
+          score: finalSectionCScore
+        }).finally(() => {
           setNavigationFlag(ALLOW_SECTIONS_FLAG);
           navigate("/sections");
         });
@@ -561,12 +555,48 @@ function Exam() {
 
       setTestResults(results);
 
+      const passedCount = results.filter((r) => r.passed).length;
       if (allPassed) {
         setOutput("✅ All test cases passed!");
       } else {
-        const passedCount = results.filter((r) => r.passed).length;
         setOutput(`⚠️ ${passedCount}/${results.length} test cases passed.`);
       }
+
+      // 🚀 AUTO-SAVE TO DB (Every run)
+      // We must calculate the full Section C state to avoid overwriting previous question results
+      const currentAnswerData = {
+        code: code,
+        language: language,
+        testResults: results,
+        passed: allPassed,
+        timestamp: new Date().toISOString()
+      };
+
+      const updatedSectionC = {
+        ...(answers.C || {}),
+        [currentCode.id]: currentAnswerData
+      };
+
+      // Update state
+      setAnswers(prev => ({
+        ...prev,
+        C: updatedSectionC
+      }));
+
+      // Calculate new total score for Section C
+      let totalScoreC = 0;
+      Object.values(updatedSectionC).forEach(ans => {
+        if (ans.passed) totalScoreC += 10;
+      });
+
+      submitSectionData("C", {
+        questionId: currentCode.id,
+        code: code,
+        language: language,
+        answers: updatedSectionC, // Send the FULL updated object
+        score: totalScoreC,
+        output: results.map(r => `Task ${r.id}: ${r.passed ? 'PASS' : 'FAIL'}`).join('\n')
+      });
     } catch (e) {
       console.error(e);
       setOutput("❌ Error running tests. Check console or internet connection.");

@@ -7,7 +7,7 @@ const ResultsDashboard = () => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString("en-CA"));
 
   const fetchResults = async () => {
     try {

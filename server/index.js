@@ -10,6 +10,7 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,19 +30,27 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model("User", userSchema);
 
-// ✅ Define Result Schema
-const resultSchema = new mongoose.Schema({
+// ✅ Define Submission Schema (EVERY CODE RUN)
+const submissionSchema = new mongoose.Schema({
   candidateId: { type: String, required: true, index: true },
+  questionId: { type: String },
+  section: { type: String, required: true },
+  language: { type: String },
+  code: { type: String },
+  score: { type: Number, default: 0 },
+  output: { type: String },
+  createdAt: { type: Date, default: Date.now },
+});
+const Submission = mongoose.model("Submission", submissionSchema);
+
+// ✅ Define Result Schema (AGGREGATED SUMMARY)
+const resultSchema = new mongoose.Schema({
+  candidateId: { type: String, required: true, unique: true },
   answers: { type: Object, default: {} },
   warningCount: { type: Number, default: 0 },
-  code: { type: String, default: "" },
-  language: { type: String, default: "" },
-  section: { type: String, required: true },
   disqualified: { type: Boolean, default: false },
-  score: { type: Number, default: 0 },
   totalScore: { type: Number, default: 0 },
   sectionsCompleted: { type: [String], default: [] },
-  timestamp: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
 const Result = mongoose.model("Result", resultSchema);
@@ -93,71 +102,63 @@ seedUsers();
 // ✅ API route to store/update results
 app.post("/api/submit", async (req, res) => {
   try {
-    const { candidateId, section, answers, code, language, score, disqualified, warningCount } = req.body;
+    const { candidateId, section, questionId, answers, code, language, score, disqualified, warningCount, output } = req.body;
+    
+    console.log("📩 Incoming submission:", req.body);
     
     if (!candidateId || !section) {
       return res.status(400).json({ error: "candidateId and section are required" });
     }
 
-    // Find existing result for this candidate
-    let result = await Result.findOne({ candidateId });
+    // 1️⃣ Save submission (Per-run record)
+    await Submission.create({
+      candidateId,
+      questionId,
+      section,
+      language,
+      code,
+      score: score || 0,
+      output
+    });
 
-    if (result) {
-      // Update existing result
-      if (answers) {
-        result.answers = { ...result.answers, ...answers };
-      }
-      if (code) {
-        result.code = code;
-      }
-      if (language) {
-        result.language = language;
-      }
-      if (score !== undefined) {
-        // Update section-specific score
-        if (!result.answers.sectionScores) {
-          result.answers.sectionScores = {};
-        }
-        result.answers.sectionScores[section] = score;
-        
-        // Calculate total score
-        const sectionScores = result.answers.sectionScores || {};
-        result.totalScore = Object.values(sectionScores).reduce((sum, s) => sum + (s || 0), 0);
-      }
-      if (disqualified !== undefined) {
-        result.disqualified = disqualified;
-      }
-      if (warningCount !== undefined) {
-        result.warningCount = Math.max(result.warningCount || 0, warningCount);
-      }
-      if (!result.sectionsCompleted.includes(section)) {
-        result.sectionsCompleted.push(section);
-      }
-      result.updatedAt = Date.now();
-      await result.save();
-    } else {
-      // Create new result
-      const sectionScores = {};
-      if (score !== undefined) {
-        sectionScores[section] = score;
-      }
-      
-      result = new Result({
-        candidateId,
-        answers: { ...answers, sectionScores },
-        code: code || "",
-        language: language || "",
-        section,
-        disqualified: disqualified || false,
-        warningCount: warningCount || 0,
-        score: score || 0,
-        totalScore: score || 0,
-        sectionsCompleted: [section],
-      });
-      await result.save();
+    // 2️⃣ Update summary safely (Aggregated)
+    let updateOps = {
+      $set: { updatedAt: new Date() }
+    };
+
+    if (disqualified !== undefined) {
+      updateOps.$set.disqualified = disqualified;
     }
 
-    console.log(`✅ Result saved for candidate ${candidateId}, section ${section}`);
+    if (warningCount !== undefined) {
+      updateOps.$set.warningCount = warningCount;
+    }
+
+    if (answers) {
+      // For MCQ sections, we might want to store specific answers
+      updateOps.$set[`answers.${section}`] = answers;
+    }
+
+    // Special handling for scores
+    if (score !== undefined) {
+      updateOps.$set[`answers.sectionScores.${section}`] = score;
+    }
+
+    // Add section to completed list if not already there
+    updateOps.$addToSet = { sectionsCompleted: section };
+
+    const result = await Result.findOneAndUpdate(
+      { candidateId },
+      updateOps,
+      { upsert: true, new: true }
+    );
+
+    // Recalculate total score
+    const sectionScores = result.answers?.sectionScores || {};
+    result.totalScore = Object.values(sectionScores).reduce((sum, s) => sum + (s || 0), 0);
+    await result.save();
+
+    console.log(`✅ Result updated for candidate ${candidateId}, section ${section}`);
     res.status(200).json({ 
       message: "Result saved successfully",
       totalScore: result.totalScore,
