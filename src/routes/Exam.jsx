@@ -953,7 +953,7 @@ function Exam() {
 
               {/* Right Side: Controls (Aligns with Editor Panel) */}
               <div className="coding-controls" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
                   {/* Language Switcher (Green Box) */}
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <span style={{ color: "#cbd5e1" }}>Language</span>
@@ -969,7 +969,20 @@ function Exam() {
                     </select>
                   </div>
 
-
+                  {/* Timer Display */}
+                  <div style={{ 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: "8px", 
+                    color: "#f8fafc", 
+                    background: "rgba(239, 68, 68, 0.1)", 
+                    padding: "4px 12px", 
+                    borderRadius: "8px",
+                    border: "1px solid rgba(239, 68, 68, 0.2)"
+                  }}>
+                    <span style={{ fontSize: "13px", color: "#94a3b8", fontWeight: "600", textTransform: "uppercase" }}>Time Left:</span>
+                    <span style={{ fontSize: "16px", fontWeight: "700", color: "#ef4444", fontFamily: "monospace" }}>{formatTime(timeLeft)}</span>
+                  </div>
                 </div>
 
                 {/* Question Progress (Far Right) */}
