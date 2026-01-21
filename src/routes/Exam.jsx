@@ -194,7 +194,7 @@ function Exam() {
         console.error(`⚠️ Error saving section ${sectionId} data:`, err);
       }
     },
-    [answers, language, API_BASE, calculateSectionScore]
+    [answers, reviews, language, API_BASE, calculateSectionScore]
   );
 
   const disqualifyCandidate = useCallback(

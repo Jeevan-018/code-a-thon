@@ -178,11 +178,8 @@ app.post("/api/submit", async (req, res) => {
     }
 
     if (reviews) {
-      // Store question reviews/comments
-      updateOps.$set[`reviews.${section}`] = { 
-        ...(result?.reviews?.[section] || {}),
-        ...reviews 
-      };
+      // Store question reviews/comments (overwrites per section)
+      updateOps.$set[`reviews.${section}`] = reviews;
     }
 
     // Special handling for scores
