@@ -8,6 +8,7 @@ const ResultsDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString("en-CA"));
+  const [expandedRow, setExpandedRow] = useState(null);
 
   const fetchResults = async () => {
     try {
@@ -211,6 +212,7 @@ const ResultsDashboard = () => {
                     <th style={{ padding: "1rem" }}>Sec C</th>
                     <th style={{ padding: "1rem" }}>Total</th>
                     <th style={{ padding: "1rem" }}>Last Updated</th>
+                    <th style={{ padding: "1rem" }}>Reviews</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -222,7 +224,8 @@ const ResultsDashboard = () => {
                     </tr>
                   ) : (
                     filteredResults.map((result) => (
-                      <tr key={result._id} style={{ background: "#2d3748", transition: "transform 0.2s" }} className="table-row">
+                      <React.Fragment key={result._id}>
+                        <tr style={{ background: "#2d3748", transition: "transform 0.2s" }} className="table-row">
                         <td style={cellStyleFirst}>
                           {result.candidateId}
                         </td>
@@ -247,7 +250,48 @@ const ResultsDashboard = () => {
                         <td style={cellStyle}>{result.answers?.sectionScores?.["C"] !== undefined ? result.answers.sectionScores["C"] : "-"}</td>
                         <td style={{ ...cellStyle, fontWeight: "bold", color: "#4caf50" }}>{result.totalScore}</td>
                         <td style={cellStyleLast}>{new Date(result.updatedAt).toLocaleTimeString()}</td>
+                        <td style={{ padding: "1rem" }}>
+                          <button
+                            onClick={() => setExpandedRow(expandedRow === result._id ? null : result._id)}
+                            style={{
+                              padding: "6px 12px",
+                              background: expandedRow === result._id ? "#4a5568" : "#667eea",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              fontSize: "0.8rem"
+                            }}
+                          >
+                            {expandedRow === result._id ? "Close" : "View"}
+                          </button>
+                        </td>
                       </tr>
+                      {expandedRow === result._id && (
+                        <tr>
+                          <td colSpan={9} style={{ padding: "0 1.5rem 1.5rem" }}>
+                            <div style={{ background: "#1f2937", borderRadius: "8px", padding: "1.5rem", border: "1px solid #374151" }}>
+                              <h4 style={{ margin: "0 0 1rem", color: "#667eea" }}>Candidate Reviews & Doubts</h4>
+                              { !result.reviews || Object.keys(result.reviews).length === 0 ? (
+                                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>No reviews submitted by this candidate.</p>
+                              ) : (
+                                Object.entries(result.reviews).map(([section, sectionReviews]) => (
+                                  <div key={section} style={{ marginBottom: "1rem" }}>
+                                    <h5 style={{ margin: "0 0 0.5rem", color: "#a0aec0" }}>Section {section}</h5>
+                                    {Object.entries(sectionReviews).map(([qid, text]) => (
+                                      <div key={qid} style={{ padding: "8px 12px", background: "#111827", borderRadius: "6px", marginBottom: "4px", fontSize: "0.9rem" }}>
+                                        <span style={{ color: "#667eea", fontWeight: "600", marginRight: "8px" }}>Question {qid}:</span>
+                                        <span style={{ color: "#e5e7eb" }}>{text}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     ))
                   )}
                 </tbody>

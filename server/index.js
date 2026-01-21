@@ -51,6 +51,7 @@ const resultSchema = new mongoose.Schema({
   disqualified: { type: Boolean, default: false },
   totalScore: { type: Number, default: 0 },
   sectionsCompleted: { type: [String], default: [] },
+  reviews: { type: Object, default: {} },
   updatedAt: { type: Date, default: Date.now },
 });
 const Result = mongoose.model("Result", resultSchema);
@@ -139,7 +140,7 @@ seedUsers();
 // ✅ API route to store/update results
 app.post("/api/submit", async (req, res) => {
   try {
-    const { candidateId, section, questionId, answers, code, language, score, disqualified, warningCount, output } = req.body;
+    const { candidateId, section, questionId, answers, reviews, code, language, score, disqualified, warningCount, output } = req.body;
     
     console.log("📩 Incoming submission:", req.body);
     
@@ -174,6 +175,14 @@ app.post("/api/submit", async (req, res) => {
     if (answers) {
       // For MCQ sections, we might want to store specific answers
       updateOps.$set[`answers.${section}`] = answers;
+    }
+
+    if (reviews) {
+      // Store question reviews/comments
+      updateOps.$set[`reviews.${section}`] = { 
+        ...(result?.reviews?.[section] || {}),
+        ...reviews 
+      };
     }
 
     // Special handling for scores

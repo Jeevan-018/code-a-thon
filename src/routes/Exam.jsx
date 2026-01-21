@@ -57,6 +57,16 @@ function Exam() {
   const [dqMessage, setDqMessage] = useState("");
   const [isDisqualified, setIsDisqualified] = useState(false);
   const disqualifiedRef = useRef(false);
+  const [reviews, setReviews] = useState(() => {
+    const saved = localStorage.getItem("exam_reviews");
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  // Auto-save reviews
+  useEffect(() => {
+    localStorage.setItem("exam_reviews", JSON.stringify(reviews));
+  }, [reviews]);
+
   const [warningCount, setWarningCount] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
   const warningCountRef = useRef(0);
@@ -156,6 +166,7 @@ function Exam() {
         disqualified,
         warningCount: warningCountRef.current,
         answers: customPayload.answers || answers[sectionId] || {},
+        reviews: customPayload.reviews || reviews[sectionId] || {},
         code: customPayload.code || "",
         language: customPayload.language || language,
         score: customPayload.score !== undefined ? customPayload.score : (sectionId === "C" ? 0 : calculateSectionScore(sectionId)),
@@ -305,6 +316,14 @@ function Exam() {
     }));
   };
 
+  // Handle Review
+  const handleReviewChange = (qid, text) => {
+    setReviews((prev) => ({
+      ...prev,
+      [section]: { ...(prev[section] || {}), [qid]: text },
+    }));
+  };
+
   // Clear current MCQ response
   const handleClearCurrentResponse = () => {
     const currentQuestion = questions[currentQuestionIndex];
@@ -360,8 +379,19 @@ function Exam() {
     setCode("");
     setOutput("");
     setTestResults(null);
+    setAnswers((prev) => ({ ...prev })); // Trigger re-render
     setCurrentQuestionIndex(0);
   }, [sectionsConfig]);
+
+  const handlePreviousSection = useCallback(() => {
+    if (section === "B") {
+      submitSectionData("B");
+      transitionToSection("A");
+    } else if (section === "C") {
+      submitSectionData("C");
+      transitionToSection("B");
+    }
+  }, [section, submitSectionData, transitionToSection]);
 
   const handleNextSection = useCallback(() => {
     if (section === "A") {
@@ -789,6 +819,28 @@ function Exam() {
                     </label>
                   ))}
 
+                  <div style={{ marginTop: "20px" }}>
+                    <label style={{ display: "block", marginBottom: "8px", color: "#8b92b0", fontSize: "14px" }}>
+                      Any doubts or comments about this question? (Optional)
+                    </label>
+                    <textarea
+                      value={reviews[section]?.[currentMCQ.id] || ""}
+                      onChange={(e) => handleReviewChange(currentMCQ.id, e.target.value)}
+                      placeholder="Write your review here..."
+                      style={{
+                        width: "100%",
+                        padding: "10px",
+                        background: "#1a1f3a",
+                        border: "1px solid #2d3748",
+                        borderRadius: "8px",
+                        color: "white",
+                        minHeight: "60px",
+                        fontSize: "14px",
+                        resize: "vertical"
+                      }}
+                    />
+                  </div>
+
                   <div
                     style={{
                       display: "flex",
@@ -826,7 +878,6 @@ function Exam() {
                       >
                         Previous Question
                       </button>
-
                       <button
                         type="button"
                         onClick={handleNextQuestion}
@@ -915,8 +966,17 @@ function Exam() {
                   display: "flex",
                   justifyContent: "flex-end",
                   padding: "0 16px 12px 16px", // Add padding back for footer
+                  gap: "12px",
                 }}
               >
+                { (section === "B" || section === "C") && (
+                  <button 
+                    onClick={handlePreviousSection}
+                    style={{ background: "#334155" }}
+                  >
+                    Previous Section
+                  </button>
+                )}
                 <button onClick={handleNextSection}>Next Section</button>
               </div>
             </div>
@@ -1017,7 +1077,8 @@ function Exam() {
                     }}
                   />
                 </div>
-                <div className="editor-actions">
+
+                  <div className="editor-actions">
                   <button
                     type="button"
                     className="run-btn"
@@ -1098,11 +1159,21 @@ function Exam() {
             </div>
 
             <div className="coding-footer">
-              <button onClick={handleNextSection}>
-                {currentCodeIndex < questions.length - 1
-                  ? "Next Question"
-                  : "Submit Test"}
-              </button>
+              <div style={{ display: "flex", gap: "12px" }}>
+                { (section === "B" || section === "C") && (
+                  <button 
+                    onClick={handlePreviousSection}
+                    style={{ background: "#334155" }}
+                  >
+                    Previous Section
+                  </button>
+                )}
+                <button onClick={handleNextSection}>
+                  {currentCodeIndex < questions.length - 1
+                    ? "Next Question"
+                    : "Submit Test"}
+                </button>
+              </div>
             </div>
           </div>
         )}
