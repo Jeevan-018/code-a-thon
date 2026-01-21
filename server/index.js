@@ -55,6 +55,43 @@ const resultSchema = new mongoose.Schema({
 });
 const Result = mongoose.model("Result", resultSchema);
 
+// ✅ Define Exam, Section, and Question Schemas
+const questionSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  text: { type: String }, // For MCQs
+  choices: [String], // For MCQs
+  answer: { type: Number }, // For MCQs (index)
+  problemStatement: { type: String }, // For Coding
+  supportedLanguages: [String], // For Coding
+  testCases: [
+    {
+      input: { type: String },
+      expectedOutput: { type: String },
+      isVisible: { type: Boolean, default: true },
+    },
+  ],
+  marks: { type: Number, default: 1 },
+  type: { type: String, enum: ["MCQ", "CODING"], required: true },
+});
+
+const sectionSchema = new mongoose.Schema({
+  id: { type: String, required: true }, // A, B, C
+  name: { type: String, required: true },
+  duration: { type: Number, required: true }, // in seconds
+  description: { type: String },
+  questions: [questionSchema],
+});
+
+const examSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String },
+  sections: [sectionSchema],
+  isActive: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+});
+
+const Exam = mongoose.model("Exam", examSchema);
+
 // ✅ Seed Users / Migrate from File
 async function seedUsers() {
   try {
@@ -223,6 +260,99 @@ app.get("/api/results/:candidateId", async (req, res) => {
   } catch (err) {
     console.error("Error fetching result:", err);
     res.status(500).json({ error: "Failed to fetch result" });
+  }
+});
+
+// ✅ API route to get active exam (for candidates)
+app.get("/api/exam/active", async (req, res) => {
+  try {
+    const exam = await Exam.findOne({ isActive: true });
+    if (!exam) {
+      return res.status(404).json({ error: "No active exam found" });
+    }
+    res.status(200).json(exam);
+  } catch (err) {
+    console.error("Error fetching active exam:", err);
+    res.status(500).json({ error: "Failed to fetch active exam" });
+  }
+});
+
+// ✅ Admin API routes for managing exams
+app.get("/api/admin/exams", async (req, res) => {
+  try {
+    const exams = await Exam.find().sort({ createdAt: -1 });
+    res.status(200).json(exams);
+  } catch (err) {
+    console.error("Error fetching exams:", err);
+    res.status(500).json({ error: "Failed to fetch exams" });
+  }
+});
+
+app.post("/api/admin/exams", async (req, res) => {
+  try {
+    console.log("📩 Incoming Create Exam request:", JSON.stringify(req.body, null, 2));
+    const { title, description, sections } = req.body;
+    
+    // If setting this exam as active, deactivate others
+    if (req.body.isActive) {
+      await Exam.updateMany({}, { isActive: false });
+    }
+
+    const newExam = await Exam.create({
+      title,
+      description,
+      sections,
+      isActive: req.body.isActive || false
+    });
+    res.status(201).json(newExam);
+  } catch (err) {
+    console.error("Error creating exam:", err);
+    res.status(500).json({ error: "Failed to create exam", details: err.message, stack: err.errors });
+  }
+});
+
+app.get("/api/admin/exams/:id", async (req, res) => {
+  try {
+    const exam = await Exam.findById(req.params.id);
+    if (!exam) return res.status(404).json({ error: "Exam not found" });
+    res.status(200).json(exam);
+  } catch (err) {
+    console.error("Error fetching exam:", err);
+    res.status(500).json({ error: "Failed to fetch exam" });
+  }
+});
+
+app.put("/api/admin/exams/:id", async (req, res) => {
+  try {
+    console.log(`📩 Incoming Update Exam request for ID: ${req.params.id}`, JSON.stringify(req.body, null, 2));
+    const { title, description, sections, isActive } = req.body;
+    
+    if (isActive) {
+      await Exam.updateMany({ _id: { $ne: req.params.id } }, { isActive: false });
+    }
+
+    const updatedExam = await Exam.findByIdAndUpdate(
+      req.params.id,
+      { title, description, sections, isActive },
+      { new: true }
+    );
+    
+    if (!updatedExam) return res.status(404).json({ error: "Exam not found" });
+    res.status(200).json(updatedExam);
+  } catch (err) {
+    console.error("Error updating exam:", err);
+    res.status(500).json({ error: "Failed to update exam", details: err.message, stack: err.errors });
+  }
+});
+
+app.delete("/api/admin/exams/:id", async (req, res) => {
+  try {
+    const deletedExam = await Exam.findByIdAndDelete(req.params.id);
+    if (!deletedExam) return res.status(404).json({ error: "Exam not found" });
+    res.status(200).json({ message: "Exam deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting exam:", err);
+    res.status(500).json({ error: "Failed to delete exam" });
   }
 });
 

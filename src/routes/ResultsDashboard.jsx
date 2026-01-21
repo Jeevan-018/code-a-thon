@@ -11,7 +11,8 @@ const ResultsDashboard = () => {
 
   const fetchResults = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL || "https://code-a-thon.onrender.com"}/api/results`);
+      const API_BASE = window.location.hostname === "localhost" ? "http://localhost:5000" : (process.env.REACT_APP_API_URL || "https://code-a-thon.onrender.com");
+      const response = await axios.get(`${API_BASE}/api/results`);
       setResults(response.data);
       setLoading(false);
     } catch (err) {
@@ -99,9 +100,26 @@ const ResultsDashboard = () => {
       </button>
 
       {/* Header */}
-      <header style={{ padding: "20px", background: "linear-gradient(90deg, #667eea 0%, #764ba2 100%)", textAlign: "center", boxShadow: "0 4px 6px rgba(0,0,0,0.1)" }}>
+      <header style={{ padding: "20px", background: "linear-gradient(90deg, #667eea 0%, #764ba2 100%)", textAlign: "center", boxShadow: "0 4px 6px rgba(0,0,0,0.1)", position: "relative" }}>
         <h1 style={{ margin: "0", fontSize: "2.5rem", fontWeight: "800", textShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>Code-A-Thon</h1>
         <p style={{ margin: "5px 0 0", opacity: 0.9 }}>Admin Dashboard</p>
+        <button
+          onClick={() => (window.location.href = "/admin/exams")}
+          style={{
+            position: "absolute",
+            bottom: "10px",
+            left: "20px",
+            background: "rgba(255, 255, 255, 0.2)",
+            color: "#ffffff",
+            border: "1px solid rgba(255, 255, 255, 0.4)",
+            padding: "8px 16px",
+            borderRadius: "6px",
+            fontWeight: "600",
+            cursor: "pointer",
+          }}
+        >
+          Manage Exams
+        </button>
       </header>
 
       {/* Main Content */}

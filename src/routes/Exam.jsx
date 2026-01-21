@@ -7,11 +7,7 @@ import {
   setNavigationFlag,
 } from "../utils/navigationFlags";
 
-const SECTION_CONFIG = {
-  A: { duration: 30 * 60, file: "/questions/sectionA.json" },
-  B: { duration: 20 * 60, file: "/questions/sectionB.json" },
-  C: { duration: 60 * 60, file: "/questions/sectionC.json" },
-};
+// SECTION_CONFIG is now fetched dynamically from MongoDB
 
 const DEFAULT_SECTION = "A";
 
@@ -19,7 +15,7 @@ const getSectionFromSearch = (search) => {
   try {
     const params = new URLSearchParams(search);
     const requested = params.get("section")?.toUpperCase();
-    return SECTION_CONFIG[requested] ? requested : DEFAULT_SECTION;
+    return requested || DEFAULT_SECTION;
   } catch {
     return DEFAULT_SECTION;
   }
@@ -30,9 +26,7 @@ function Exam() {
   const location = useLocation();
   const initialSectionRef = useRef(getSectionFromSearch(location.search));
   const [section, setSection] = useState(initialSectionRef.current);
-  const [timeLeft, setTimeLeft] = useState(
-    SECTION_CONFIG[initialSectionRef.current].duration
-  );
+  const [timeLeft, setTimeLeft] = useState(30 * 60); // Default placeholder
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState(() => {
     const saved = localStorage.getItem("exam_answers");
@@ -67,23 +61,59 @@ function Exam() {
   const [showWarning, setShowWarning] = useState(false);
   const warningCountRef = useRef(0);
   const handleNextSectionRef = useRef(null);
-  const API_BASE = process.env.REACT_APP_API_URL || "https://code-a-thon.onrender.com";
+  const API_BASE = window.location.hostname === "localhost" ? "http://localhost:5000" : (process.env.REACT_APP_API_URL || "https://code-a-thon.onrender.com");
+
+  const [exam, setExam] = useState(null);
+  const [sectionsConfig, setSectionsConfig] = useState({});
+
+  // ===============================
+  // Fetch active exam and sections
+  // ===============================
+  useEffect(() => {
+    const fetchActiveExam = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/exam/active`);
+        if (res.ok) {
+          const data = await res.json();
+          setExam(data);
+          
+          const config = {};
+          data.sections.forEach(s => {
+            config[s.id] = { duration: s.duration, questions: s.questions };
+          });
+          setSectionsConfig(config);
+
+          const requestedSection = getSectionFromSearch(location.search);
+          if (config[requestedSection]) {
+            setTimeLeft(config[requestedSection].duration);
+            setQuestions(config[requestedSection].questions);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch active exam:", err);
+      }
+    };
+    fetchActiveExam();
+  }, [API_BASE, location.search]);
 
   useEffect(() => {
     const requestedSection = getSectionFromSearch(location.search);
-    setSection((prevSection) => {
-      if (prevSection === requestedSection) {
-        return prevSection;
-      }
-      setTimeLeft(SECTION_CONFIG[requestedSection].duration);
-      setCurrentCodeIndex(0);
-      setCode("");
-      setOutput("");
-      setTestResults(null);
-      setCurrentQuestionIndex(0);
-      return requestedSection;
-    });
-  }, [location.search]);
+    if (sectionsConfig[requestedSection]) {
+      setSection((prevSection) => {
+        if (prevSection === requestedSection) {
+          return prevSection;
+        }
+        setTimeLeft(sectionsConfig[requestedSection].duration);
+        setQuestions(sectionsConfig[requestedSection].questions);
+        setCurrentCodeIndex(0);
+        setCode("");
+        setOutput("");
+        setTestResults(null);
+        setCurrentQuestionIndex(0);
+        return requestedSection;
+      });
+    }
+  }, [location.search, sectionsConfig]);
 
   useEffect(() => {
     const candidateId = localStorage.getItem("candidate_id");
@@ -97,22 +127,21 @@ function Exam() {
   // Helper: calculate score for the current section
   const calculateSectionScore = useCallback(
     (sectionId) => {
-      if (sectionId === "C") return 0;
-      if (section !== sectionId || !questions || questions.length === 0) {
-        return 0;
-      }
-
+      const currentSectionData = sectionsConfig[sectionId];
+      if (!currentSectionData || sectionId === "C") return 0;
+      
+      const sectionQuestions = currentSectionData.questions || [];
       const sectionAnswers = answers[sectionId] || {};
       let score = 0;
-      for (let i = 0; i < questions.length; i += 1) {
-        const q = questions[i];
+      for (let i = 0; i < sectionQuestions.length; i += 1) {
+        const q = sectionQuestions[i];
         if (sectionAnswers[q.id] === q.answer) {
-          score += 1;
+          score += (q.marks || 1);
         }
       }
       return score;
     },
-    [section, questions, answers]
+    [sectionsConfig, answers]
   );
 
   // Helper: submit data for a specific section to MongoDB
@@ -133,7 +162,6 @@ function Exam() {
         output: customPayload.output || "",
       };
 
-      // If it's section C and score wasn't explicitly provided, calculate it from the (potentially updated) answers
       if (sectionId === "C" && customPayload.score === undefined) {
         const sectionCAnswers = payload.answers || {};
         let totalScoreC = 0;
@@ -144,16 +172,13 @@ function Exam() {
       }
 
       try {
-        console.log("📤 Sending result payload:", payload);
         const res = await fetch(`${API_BASE}/api/submit`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
 
-        if (!res.ok) {
-          console.error(`❌ Failed to save section ${sectionId} data.`);
-        }
+        if (!res.ok) console.error(`❌ Failed to save section ${sectionId} data.`);
       } catch (err) {
         console.error(`⚠️ Error saving section ${sectionId} data:`, err);
       }
@@ -204,7 +229,6 @@ function Exam() {
         disqualifyCandidate(message);
       } else {
         setShowWarning(true);
-        // Sync warning count immediately
         submitSectionData(section);
       }
     };
@@ -216,11 +240,6 @@ function Exam() {
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    // Removed blur listener to prevent false positives when clicking outside or losing focus momentarily
-    // window.addEventListener("blur", handleWindowBlur);
-    // window.addEventListener("pagehide", handleWindowBlur);
-
-    // Enforce Full Screen
     const checkFullScreen = () => {
       const isFs = !!document.fullscreenElement;
       setIsFullScreen(isFs);
@@ -236,13 +255,7 @@ function Exam() {
         return;
       }
 
-      if (
-        //e.ctrlKey ||
-        e.metaKey ||
-        e.altKey ||
-        e.key === "F12" ||
-        (e.ctrlKey && e.key === "r")
-      ) {
+      if (e.metaKey || e.altKey || e.key === "F12" || (e.ctrlKey && e.key === "r")) {
         e.preventDefault();
         handleViolation("⚠️ Shortcut keys are disabled during the test.");
       }
@@ -255,28 +268,10 @@ function Exam() {
       document.removeEventListener("cut", handleCopyCutPaste);
       document.removeEventListener("paste", handleCopyCutPaste);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      // window.removeEventListener("blur", handleWindowBlur);
-      // window.removeEventListener("pagehide", handleWindowBlur);
       document.removeEventListener("fullscreenchange", checkFullScreen);
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
   }, [disqualifyCandidate, section, submitSectionData]);
-
-  // ===============================
-  // Load section questions
-  // ===============================
-  useEffect(() => {
-    const file = SECTION_CONFIG[section]?.file;
-    if (!file) return;
-    setQuestions([]);
-    fetch(file)
-      .then((res) => res.json())
-      .then((data) => {
-        setQuestions(data);
-        setCurrentQuestionIndex(0);
-      })
-      .catch((err) => console.error("Failed to load questions:", err));
-  }, [section]);
 
   // ===============================
   // Timer logic
@@ -375,15 +370,15 @@ function Exam() {
   // Section navigation logic
   // ===============================
   const transitionToSection = useCallback((nextSection) => {
-    if (!SECTION_CONFIG[nextSection]) return;
+    if (!sectionsConfig[nextSection]) return;
     setSection(nextSection);
-    setTimeLeft(SECTION_CONFIG[nextSection].duration);
+    setTimeLeft(sectionsConfig[nextSection].duration);
     setCurrentCodeIndex(0);
     setCode("");
     setOutput("");
     setTestResults(null);
     setCurrentQuestionIndex(0);
-  }, []);
+  }, [sectionsConfig]);
 
   const handleNextSection = useCallback(() => {
     if (section === "A") {

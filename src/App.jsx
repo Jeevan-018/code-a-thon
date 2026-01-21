@@ -11,6 +11,8 @@ import ResultsDashboard from "./routes/ResultsDashboard";
 import NavigationBlocker from "./components/NavigationBlocker";
 import "./styles.css";
 
+import AdminExamManager from "./routes/AdminExamManager";
+
 function AppContent() {
   return (
     <>
@@ -35,6 +37,8 @@ function AppContent() {
 
         {/* Admin Dashboard */}
         <Route path="/admin/results" element={<ResultsDashboard />} />
+        <Route path="/admin/exams" element={<AdminExamManager />} />
+        <Route path="/admin/exams/:id" element={<AdminExamManager />} />
 
         {/* Redirect any unknown routes to welcome */}
         <Route path="*" element={<Navigate to="/" />} />

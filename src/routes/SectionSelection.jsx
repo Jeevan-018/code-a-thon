@@ -120,32 +120,31 @@ function SectionSelection() {
 
 
 
-  const sections = [
-    {
-      id: "A",
-      name: "Verbal Ability",
-      questions: 20,
-      duration: 30,
-      description:
-        "Multiple choice questions on verbal reasoning and language skills",
-    },
-    {
-      id: "B",
-      name: "Numerical Ability",
-      questions: 10,
-      duration: 20,
-      description:
-        "Multiple choice questions on numerical reasoning and problem solving",
-    },
-    {
-      id: "C",
-      name: "Logical Ability",
-      questions: 3,
-      duration: 60,
-      description:
-        "Coding problems to test logical thinking and programming skills",
-    },
-  ];
+  const [sections, setSections] = useState([]);
+  const API_BASE = window.location.hostname === "localhost" ? "http://localhost:5000" : (process.env.REACT_APP_API_URL || "https://code-a-thon.onrender.com");
+
+  useEffect(() => {
+    const fetchActiveExam = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/exam/active`);
+        if (res.ok) {
+          const exam = await res.json();
+          // Map backend sections to the format expected by the UI
+          const mappedSections = exam.sections.map((s) => ({
+            id: s.id,
+            name: s.name,
+            questions: s.questions.length,
+            duration: Math.round(s.duration / 60), // Convert seconds to minutes for display
+            description: s.description,
+          }));
+          setSections(mappedSections);
+        }
+      } catch (err) {
+        console.error("Failed to fetch active exam:", err);
+      }
+    };
+    fetchActiveExam();
+  }, [API_BASE]);
 
   const handleSectionClick = (sectionId) => {
     if (completedSections.includes(sectionId)) return;
