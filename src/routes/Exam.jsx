@@ -53,7 +53,7 @@ function Exam() {
   const [testResults, setTestResults] = useState(null);
   const testCasePanelRef = useRef(null);
   const [language, setLanguage] = useState("Python");
-  const [theme, setTheme] = useState("vs-dark");
+  const [theme] = useState("vs-dark");
   const [dqMessage, setDqMessage] = useState("");
   const [isDisqualified, setIsDisqualified] = useState(false);
   const disqualifiedRef = useRef(false);
@@ -63,7 +63,7 @@ function Exam() {
   const handleNextSectionRef = useRef(null);
   const API_BASE = window.location.hostname === "localhost" ? "http://localhost:5000" : (process.env.REACT_APP_API_URL || "https://code-a-thon.onrender.com");
 
-  const [exam, setExam] = useState(null);
+  const [, setExam] = useState(null);
   const [sectionsConfig, setSectionsConfig] = useState({});
 
   // ===============================
@@ -199,15 +199,6 @@ function Exam() {
     [navigate]
   );
 
-  const [isFullScreen, setIsFullScreen] = useState(true);
-
-  const requestFullScreen = () => {
-    if (document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen().catch((err) => {
-        console.error("Error attempting to enable full-screen mode:", err);
-      });
-    }
-  };
 
   useEffect(() => {
     const handleContextMenu = (e) => e.preventDefault();
@@ -240,13 +231,6 @@ function Exam() {
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    const checkFullScreen = () => {
-      const isFs = !!document.fullscreenElement;
-      setIsFullScreen(isFs);
-    };
-    document.addEventListener("fullscreenchange", checkFullScreen);
-    checkFullScreen();
-
     const handleKeyDown = (e) => {
       if (e.key === "Escape" || e.code === "Escape") {
         e.preventDefault();
@@ -268,7 +252,6 @@ function Exam() {
       document.removeEventListener("cut", handleCopyCutPaste);
       document.removeEventListener("paste", handleCopyCutPaste);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      document.removeEventListener("fullscreenchange", checkFullScreen);
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
   }, [disqualifyCandidate, section, submitSectionData]);
@@ -447,8 +430,12 @@ function Exam() {
     markSectionCompleted,
     transitionToSection,
     currentCodeIndex,
-    questions.length,
+    questions,
     navigate,
+    answers,
+    code,
+    language,
+    testResults
   ]);
 
   useEffect(() => {
