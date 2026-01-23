@@ -19,14 +19,7 @@ function AdminExamManager() {
 
   const [activeSectionTab, setActiveSectionTab] = useState(0);
 
-  useEffect(() => {
-    fetchExams();
-    if (id) {
-      fetchExamById(id);
-    }
-  }, [id]);
-
-  const fetchExams = async () => {
+  const fetchExams = React.useCallback(async () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/api/admin/exams`);
@@ -36,9 +29,9 @@ function AdminExamManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchExamById = async (examId) => {
+  const fetchExamById = React.useCallback(async (examId) => {
     setLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/api/admin/exams/${examId}`);
@@ -49,7 +42,14 @@ function AdminExamManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchExams();
+    if (id) {
+      fetchExamById(id);
+    }
+  }, [id, fetchExams, fetchExamById]);
 
   const handleSaveExam = async (e) => {
     e.preventDefault();
@@ -111,7 +111,10 @@ function AdminExamManager() {
       ...(type === "MCQ"
         ? { text: "", choices: ["", "", "", ""], answer: 0 }
         : {
+          title: "",
           problemStatement: "",
+          sampleInput: "",
+          expectedOutput: "",
           supportedLanguages: ["Python", "Java", "C", "C++"],
           testCases: [{ input: "", expectedOutput: "", isVisible: true }],
         }),
@@ -391,12 +394,41 @@ function AdminExamManager() {
                           </>
                         ) : (
                           <>
+                            <input
+                              type="text"
+                              value={q.title}
+                              onChange={(e) => handleUpdateQuestion(activeSectionTab, qIdx, "title", e.target.value)}
+                              placeholder="Question Title (e.g. Reverse a String)"
+                              style={{ ...styles.input, marginBottom: "16px" }}
+                            />
                             <textarea
                               value={q.problemStatement}
                               onChange={(e) => handleUpdateQuestion(activeSectionTab, qIdx, "problemStatement", e.target.value)}
                               placeholder="Problem Statement"
                               style={styles.smallTextarea}
                             />
+                            <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+                              <div style={{ flex: 1 }}>
+                                <label style={styles.label}>Sample Input (Optional)</label>
+                                <input
+                                  type="text"
+                                  value={q.sampleInput}
+                                  onChange={(e) => handleUpdateQuestion(activeSectionTab, qIdx, "sampleInput", e.target.value)}
+                                  placeholder="e.g. [1, 2, 3]"
+                                  style={styles.smallInput}
+                                />
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <label style={styles.label}>Expected Output (Optional)</label>
+                                <input
+                                  type="text"
+                                  value={q.expectedOutput}
+                                  onChange={(e) => handleUpdateQuestion(activeSectionTab, qIdx, "expectedOutput", e.target.value)}
+                                  placeholder="e.g. [3, 2, 1]"
+                                  style={styles.smallInput}
+                                />
+                              </div>
+                            </div>
                             <div style={styles.testCaseManager}>
                               <h5>Test Cases</h5>
                               {q.testCases.map((tc, tcIdx) => (

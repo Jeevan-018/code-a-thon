@@ -53,11 +53,11 @@ function App() {
     // Helper function to safely get element and check if it's an input/textarea/editable
     const isEditableElement = (node) => {
       if (!node) return false;
-      
+
       // If it's a text node, get the parent element
       const element = node.nodeType === 1 ? node : (node.parentElement || node.parentNode);
       if (!element || element.nodeType !== 1) return false;
-      
+
       const tagName = element.tagName?.toUpperCase();
       const isInput = tagName === "INPUT" || tagName === "TEXTAREA";
       const isContentEditable = element.isContentEditable === true;
@@ -65,7 +65,7 @@ function App() {
       const isContentEditableAttr = contentEditableAttr === "true" || contentEditableAttr === "";
       const role = element.getAttribute?.("role");
       const isTextbox = role === "textbox";
-      
+
       return isInput || isContentEditable || isContentEditableAttr || isTextbox;
     };
 
@@ -100,7 +100,7 @@ function App() {
 
     // Track mouse state for drag selection prevention
     let mouseDown = false;
-    
+
     const handleMouseDown = (e) => {
       if (!isEditableElement(e.target)) {
         mouseDown = true;
@@ -143,9 +143,18 @@ function App() {
     };
   }, []);
 
-  // Reset completed sections on every fresh app load (new run)
+  // Reset exam state on every fresh app load (new run)
   useEffect(() => {
     localStorage.removeItem("completedSections");
+    localStorage.removeItem("exam_answers");
+    localStorage.removeItem("exam_code");
+    localStorage.removeItem("exam_reviews");
+    localStorage.removeItem("exam_section_timers");
+    localStorage.removeItem("exam_start_time");
+    // Clear per-section start times
+    ["A", "B", "C"].forEach(sid => {
+      localStorage.removeItem(`section_${sid}_start`);
+    });
   }, []);
 
   return (

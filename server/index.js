@@ -72,6 +72,9 @@ const questionSchema = new mongoose.Schema({
   choices: [String], // For MCQs
   answer: { type: Number }, // For MCQs (index)
   problemStatement: { type: String }, // For Coding
+  title: { type: String }, // For Coding question title
+  sampleInput: { type: String }, // For Coding
+  expectedOutput: { type: String }, // For Coding
   supportedLanguages: [String], // For Coding
   testCases: [
     {

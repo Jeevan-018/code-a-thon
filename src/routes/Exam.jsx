@@ -21,12 +21,18 @@ const getSectionFromSearch = (search) => {
   }
 };
 
+const getSectionStartTime = (id) => {
+  const saved = localStorage.getItem(`section_${id}_start`);
+  return saved ? parseInt(saved) : null;
+};
+
 function Exam() {
   const navigate = useNavigate();
   const location = useLocation();
   const initialSectionRef = useRef(getSectionFromSearch(location.search));
   const [section, setSection] = useState(initialSectionRef.current);
-  const [timeLeft, setTimeLeft] = useState(null); // Initialized to null to avoid premature localStorage pollution
+
+  const [allTimers, setAllTimers] = useState({});
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState(() => {
     const saved = localStorage.getItem("exam_answers");
@@ -67,19 +73,6 @@ function Exam() {
     localStorage.setItem("exam_reviews", JSON.stringify(reviews));
   }, [reviews]);
 
-  const [sectionTimers, setSectionTimers] = useState(() => {
-    const saved = localStorage.getItem("exam_section_timers");
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  // Auto-save section timers
-  useEffect(() => {
-    localStorage.setItem("exam_section_timers", JSON.stringify(sectionTimers));
-    sectionTimersRef.current = sectionTimers;
-  }, [sectionTimers]);
-
-  const sectionTimersRef = useRef(sectionTimers);
-
   const [warningCount, setWarningCount] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
   const warningCountRef = useRef(0);
@@ -108,8 +101,6 @@ function Exam() {
 
           const requestedSection = getSectionFromSearch(location.search);
           if (config[requestedSection]) {
-            const savedTime = sectionTimersRef.current[requestedSection];
-            setTimeLeft(savedTime !== undefined ? savedTime : config[requestedSection].duration);
             setQuestions(config[requestedSection].questions);
           }
         }
@@ -120,6 +111,44 @@ function Exam() {
     fetchActiveExam();
   }, [API_BASE, location.search]);
 
+  // Real-time universal timer (Per-Section Ticking)
+  useEffect(() => {
+    if (Object.keys(sectionsConfig).length === 0) return;
+
+    const tick = () => {
+      const now = Date.now();
+      const newTimers = {};
+      Object.keys(sectionsConfig).forEach((sid) => {
+        const startTime = getSectionStartTime(sid);
+        if (!startTime) {
+          newTimers[sid] = sectionsConfig[sid].duration;
+        } else {
+          const elapsed = Math.floor((now - startTime) / 1000);
+          newTimers[sid] = Math.max(0, sectionsConfig[sid].duration - elapsed);
+        }
+      });
+      setAllTimers(newTimers);
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [sectionsConfig]);
+
+  // Handle auto-skip when current section expires
+  const currentSectionTimer = allTimers[section];
+  useEffect(() => {
+    if (currentSectionTimer === 0 && Object.keys(sectionsConfig).length > 0) {
+      console.log(`Section ${section} expired. Auto-navigating...`);
+      if (handleNextSectionRef.current) {
+        handleNextSectionRef.current();
+      }
+    }
+  }, [currentSectionTimer, section, sectionsConfig]);
+
+  // Timer is initiated only via handleSectionClick in SectionSelection.jsx 
+  // or transitionToSection during sequential navigation.
+
   useEffect(() => {
     const requestedSection = getSectionFromSearch(location.search);
     if (sectionsConfig[requestedSection]) {
@@ -127,8 +156,6 @@ function Exam() {
         if (prevSection === requestedSection) {
           return prevSection;
         }
-        const savedTime = sectionTimersRef.current[requestedSection];
-        setTimeLeft(savedTime !== undefined ? savedTime : sectionsConfig[requestedSection].duration);
         setQuestions(sectionsConfig[requestedSection].questions);
         setCurrentCodeIndex(0);
         setCode("");
@@ -225,7 +252,7 @@ function Exam() {
       setNavigationFlag(ALLOW_FINAL_FLAG);
       setTimeout(() => navigate("/final", { replace: true }), 1500);
     },
-    [navigate]
+    [navigate, setDqMessage, setIsDisqualified]
   );
 
 
@@ -283,39 +310,18 @@ function Exam() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
-  }, [disqualifyCandidate, section, submitSectionData]);
+  }, [
+    disqualifyCandidate,
+    section,
+    submitSectionData,
+    setShowWarning,
+    setWarningCount,
+  ]);
 
-  // ===============================
-  // Timer logic
-  // ===============================
-  const isTimerInitialized = timeLeft !== null;
-
+  // No-op for sectionTimers sync
   useEffect(() => {
-    if (!isTimerInitialized) return;
-    const timer = setInterval(() => {
-      setTimeLeft((t) => {
-        if (t <= 1) {
-          clearInterval(timer);
-          if (handleNextSectionRef.current) {
-            handleNextSectionRef.current();
-          }
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [section, isTimerInitialized]);
-
-  // Sync current section timer
-  useEffect(() => {
-    if (section && timeLeft !== undefined && timeLeft !== null) {
-      setSectionTimers((prev) => ({
-        ...prev,
-        [section]: timeLeft,
-      }));
-    }
-  }, [timeLeft, section]);
+    // Left empty to avoid breaking dependencies elsewhere if any
+  }, []);
 
   // ===============================
   // Mark section as completed (for SectionSelection screen)
@@ -404,11 +410,24 @@ function Exam() {
   // Section navigation logic
   // ===============================
   const transitionToSection = useCallback((nextSection) => {
-    if (!sectionsConfig[nextSection]) return;
+    if (!sectionsConfig[nextSection]) return false;
+
+    // Start timer for next section if not already started
+    let startTime = getSectionStartTime(nextSection);
+    if (!startTime) {
+      startTime = Date.now();
+      localStorage.setItem(`section_${nextSection}_start`, startTime.toString());
+    }
+
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const remaining = Math.max(0, sectionsConfig[nextSection].duration - elapsed);
+
+    if (remaining <= 0) {
+      return false;
+    }
+
     setSection(nextSection);
     setQuestions(sectionsConfig[nextSection].questions);
-    const savedTime = sectionTimers[nextSection];
-    setTimeLeft(savedTime !== undefined ? savedTime : sectionsConfig[nextSection].duration);
     setCurrentCodeIndex(0);
     setCode("");
     setOutput("");
@@ -417,15 +436,16 @@ function Exam() {
 
     // Sync URL
     navigate(`?section=${nextSection}`, { replace: true });
-  }, [sectionsConfig, sectionTimers, navigate]);
+    return true;
+  }, [sectionsConfig, navigate]);
 
   const handlePreviousSection = useCallback(() => {
     if (section === "B") {
       submitSectionData("B");
-      transitionToSection("A");
+      if (!transitionToSection("A")) alert("Section A has expired.");
     } else if (section === "C") {
       submitSectionData("C");
-      transitionToSection("B");
+      if (!transitionToSection("B")) alert("Section B has expired.");
     }
   }, [section, submitSectionData, transitionToSection]);
 
@@ -433,11 +453,17 @@ function Exam() {
     if (section === "A") {
       submitSectionData("A");
       markSectionCompleted("A");
-      transitionToSection("B");
+      if (!transitionToSection("B")) {
+        if (!transitionToSection("C")) {
+          navigate("/sections");
+        }
+      }
     } else if (section === "B") {
       submitSectionData("B");
       markSectionCompleted("B");
-      transitionToSection("C");
+      if (!transitionToSection("C")) {
+        navigate("/sections");
+      }
     } else if (section === "C") {
       // Capture current state for the question
       const currentQ = questions[currentCodeIndex];
@@ -838,11 +864,11 @@ function Exam() {
               }}
             >
               <h2>Section-{section}</h2>
-              <p>Time Left: {formatTime(timeLeft)}</p>
+              <p>Time Left: {formatTime(allTimers[section])}</p>
 
               {currentMCQ && (
                 <div className="question-card" key={currentMCQ.id}>
-                  <p>
+                  <p className="question-text">
                     <b>{currentQuestionIndex + 1}. </b> {currentMCQ.text}
                   </p>
                   {currentMCQ.choices.map((choice, idx) => (
@@ -1063,7 +1089,7 @@ function Exam() {
                     border: "1px solid rgba(239, 68, 68, 0.2)"
                   }}>
                     <span style={{ fontSize: "13px", color: "#94a3b8", fontWeight: "600", textTransform: "uppercase" }}>Time Left:</span>
-                    <span style={{ fontSize: "16px", fontWeight: "700", color: "#ef4444", fontFamily: "monospace" }}>{formatTime(timeLeft)}</span>
+                    <span style={{ fontSize: "16px", fontWeight: "700", color: "#ef4444", fontFamily: "monospace" }}>{formatTime(allTimers[section])}</span>
                   </div>
                 </div>
 
@@ -1078,15 +1104,15 @@ function Exam() {
               <section className="problem-panel">
                 <div className="problem-card">
                   <h4>Problem Statement</h4>
-                  <p className="problem-desc">{currentCode.description}</p>
+                  <p className="problem-desc">{currentCode.problemStatement}</p>
                   <div className="io-block">
                     <div>
                       <span>Sample Input</span>
-                      <pre>{currentCode.sampleInput || "-"}</pre>
+                      <pre>{currentCode.sampleInput || (currentCode.testCases?.[0]?.isVisible ? currentCode.testCases[0].input : "-")}</pre>
                     </div>
                     <div>
                       <span>Expected Output</span>
-                      <pre>{currentCode.expectedOutput || "-"}</pre>
+                      <pre>{currentCode.expectedOutput || (currentCode.testCases?.[0]?.isVisible ? currentCode.testCases[0].expectedOutput : "-")}</pre>
                     </div>
                   </div>
                   <ul className="problem-guidelines">
@@ -1109,11 +1135,45 @@ function Exam() {
                     theme={theme}
                     value={code}
                     onChange={(value) => setCode(value || "")}
+                    onMount={(editor, monaco) => {
+                      // Intercept and disable copy, cut, and paste keybindings
+                      // Includes standard (Ctrl/Cmd + C/X/V) and secondary (Insert/Delete) shortcuts
+                      editor.addAction({
+                        id: "disable-copy",
+                        label: "Copy disabled",
+                        keybindings: [
+                          monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC,
+                          monaco.KeyMod.CtrlCmd | monaco.KeyCode.Insert,
+                        ],
+                        run: () => null,
+                      });
+                      editor.addAction({
+                        id: "disable-cut",
+                        label: "Cut disabled",
+                        keybindings: [
+                          monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX,
+                          monaco.KeyMod.Shift | monaco.KeyCode.Delete,
+                        ],
+                        run: () => null,
+                      });
+                      editor.addAction({
+                        id: "disable-paste",
+                        label: "Paste disabled",
+                        keybindings: [
+                          monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV,
+                          monaco.KeyMod.Shift | monaco.KeyCode.Insert,
+                        ],
+                        run: () => null,
+                      });
+                    }}
                     options={{
                       minimap: { enabled: false },
                       fontSize: 14,
                       scrollBeyondLastLine: false,
                       automaticLayout: true,
+                      contextmenu: false, // Disable right-click context menu
+                      dragAndDrop: false, // Disable drag and drop of text
+                      links: false,
                     }}
                   />
                 </div>
