@@ -32,7 +32,7 @@ function Exam() {
     const saved = localStorage.getItem("exam_answers");
     return saved ? JSON.parse(saved) : {};
   });
-  
+
   // Auto-save answers
   useEffect(() => {
     localStorage.setItem("exam_answers", JSON.stringify(answers));
@@ -67,6 +67,19 @@ function Exam() {
     localStorage.setItem("exam_reviews", JSON.stringify(reviews));
   }, [reviews]);
 
+  const [sectionTimers, setSectionTimers] = useState(() => {
+    const saved = localStorage.getItem("exam_section_timers");
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  // Auto-save section timers
+  useEffect(() => {
+    localStorage.setItem("exam_section_timers", JSON.stringify(sectionTimers));
+    sectionTimersRef.current = sectionTimers;
+  }, [sectionTimers]);
+
+  const sectionTimersRef = useRef(sectionTimers);
+
   const [warningCount, setWarningCount] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
   const warningCountRef = useRef(0);
@@ -86,7 +99,7 @@ function Exam() {
         if (res.ok) {
           const data = await res.json();
           setExam(data);
-          
+
           const config = {};
           data.sections.forEach(s => {
             config[s.id] = { duration: s.duration, questions: s.questions };
@@ -95,7 +108,8 @@ function Exam() {
 
           const requestedSection = getSectionFromSearch(location.search);
           if (config[requestedSection]) {
-            setTimeLeft(config[requestedSection].duration);
+            const savedTime = sectionTimersRef.current[requestedSection];
+            setTimeLeft(savedTime !== undefined ? savedTime : config[requestedSection].duration);
             setQuestions(config[requestedSection].questions);
           }
         }
@@ -113,7 +127,8 @@ function Exam() {
         if (prevSection === requestedSection) {
           return prevSection;
         }
-        setTimeLeft(sectionsConfig[requestedSection].duration);
+        const savedTime = sectionTimersRef.current[requestedSection];
+        setTimeLeft(savedTime !== undefined ? savedTime : sectionsConfig[requestedSection].duration);
         setQuestions(sectionsConfig[requestedSection].questions);
         setCurrentCodeIndex(0);
         setCode("");
@@ -139,7 +154,7 @@ function Exam() {
     (sectionId) => {
       const currentSectionData = sectionsConfig[sectionId];
       if (!currentSectionData || sectionId === "C") return 0;
-      
+
       const sectionQuestions = currentSectionData.questions || [];
       const sectionAnswers = answers[sectionId] || {};
       let score = 0;
@@ -286,6 +301,16 @@ function Exam() {
     return () => clearInterval(timer);
   }, [section]);
 
+  // Sync current section timer
+  useEffect(() => {
+    if (section && timeLeft !== undefined) {
+      setSectionTimers((prev) => ({
+        ...prev,
+        [section]: timeLeft,
+      }));
+    }
+  }, [timeLeft, section]);
+
   // ===============================
   // Mark section as completed (for SectionSelection screen)
   // ===============================
@@ -374,14 +399,18 @@ function Exam() {
   const transitionToSection = useCallback((nextSection) => {
     if (!sectionsConfig[nextSection]) return;
     setSection(nextSection);
-    setTimeLeft(sectionsConfig[nextSection].duration);
+    setQuestions(sectionsConfig[nextSection].questions);
+    const savedTime = sectionTimers[nextSection];
+    setTimeLeft(savedTime !== undefined ? savedTime : sectionsConfig[nextSection].duration);
     setCurrentCodeIndex(0);
     setCode("");
     setOutput("");
     setTestResults(null);
-    setAnswers((prev) => ({ ...prev })); // Trigger re-render
     setCurrentQuestionIndex(0);
-  }, [sectionsConfig]);
+
+    // Sync URL
+    navigate(`?section=${nextSection}`, { replace: true });
+  }, [sectionsConfig, sectionTimers, navigate]);
 
   const handlePreviousSection = useCallback(() => {
     if (section === "B") {
@@ -406,30 +435,30 @@ function Exam() {
       // Capture current state for the question
       const currentQ = questions[currentCodeIndex];
       const isPassed = testResults ? testResults.every((r) => r.passed) : false; // Naive check
-      
+
       const currentAnswerData = {
-          code,
-          language,
-          testResults,
-          passed: isPassed,
-          timestamp: new Date().toISOString()
+        code,
+        language,
+        testResults,
+        passed: isPassed,
+        timestamp: new Date().toISOString()
       };
 
       // Calculate updated answers locally
-      const updatedSectionC = { 
-          ...(answers.C || {}), 
-          [currentQ.id]: currentAnswerData 
+      const updatedSectionC = {
+        ...(answers.C || {}),
+        [currentQ.id]: currentAnswerData
       };
 
       // Update React state
       setAnswers((prev) => ({
-          ...prev,
-          C: updatedSectionC
+        ...prev,
+        C: updatedSectionC
       }));
 
       if (currentCodeIndex < questions.length - 1) {
         setCurrentCodeIndex((idx) => idx + 1);
-        
+
         // Check if we have a saved answer for the next question to restore?
         // For now, we clear it as per original design.
         setCode("");
@@ -438,7 +467,7 @@ function Exam() {
       } else {
         markSectionCompleted("C");
         setTestResults(null);
-        
+
         // Submit using the explicitly updated object to ensure the last question is included
         let finalSectionCScore = 0;
         Object.values(updatedSectionC).forEach(ans => {
@@ -488,9 +517,9 @@ function Exam() {
       C: "c",
       "C++": "c++",
     };
-    
+
     // Default to python if unknown or "Python"
-    const language = langMap[lang] || "python"; 
+    const language = langMap[lang] || "python";
     const version = language === "python" ? "3.10.0" : "*";
 
     try {
@@ -553,7 +582,7 @@ function Exam() {
         // Simple string comparison (trim logic already applied)
         // If there's a stderr, we mark passed=false (unless expected output matches error? unlikely)
         const passed = !error && actualOutput === testCase.expectedOutput;
-        
+
         if (!passed) allPassed = false;
 
         results.push({
@@ -869,8 +898,8 @@ function Exam() {
                         disabled={currentQuestionIndex === 0}
                         style={{
                           margin: 0,
-                          background: currentQuestionIndex === 0 
-                            ? "#4a5568" 
+                          background: currentQuestionIndex === 0
+                            ? "#4a5568"
                             : "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)", // Blue for nav
                           cursor: currentQuestionIndex === 0 ? "not-allowed" : "pointer",
                           opacity: currentQuestionIndex === 0 ? 0.5 : 1,
@@ -884,8 +913,8 @@ function Exam() {
                         disabled={currentQuestionIndex === questions.length - 1}
                         style={{
                           margin: 0,
-                          background: currentQuestionIndex === questions.length - 1 
-                            ? "#4a5568" 
+                          background: currentQuestionIndex === questions.length - 1
+                            ? "#4a5568"
                             : "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)", // Blue for nav
                           cursor: currentQuestionIndex === questions.length - 1 ? "not-allowed" : "pointer",
                           opacity: currentQuestionIndex === questions.length - 1 ? 0.5 : 1,
@@ -969,8 +998,8 @@ function Exam() {
                   gap: "12px",
                 }}
               >
-                { (section === "B" || section === "C") && (
-                  <button 
+                {(section === "B" || section === "C") && (
+                  <button
                     onClick={handlePreviousSection}
                     style={{ background: "#334155" }}
                   >
@@ -1012,13 +1041,13 @@ function Exam() {
                   </div>
 
                   {/* Timer Display */}
-                  <div style={{ 
-                    display: "flex", 
-                    alignItems: "center", 
-                    gap: "8px", 
-                    color: "#f8fafc", 
-                    background: "rgba(239, 68, 68, 0.1)", 
-                    padding: "4px 12px", 
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    color: "#f8fafc",
+                    background: "rgba(239, 68, 68, 0.1)",
+                    padding: "4px 12px",
                     borderRadius: "8px",
                     border: "1px solid rgba(239, 68, 68, 0.2)"
                   }}>
@@ -1078,7 +1107,7 @@ function Exam() {
                   />
                 </div>
 
-                  <div className="editor-actions">
+                <div className="editor-actions">
                   <button
                     type="button"
                     className="run-btn"
@@ -1101,9 +1130,8 @@ function Exam() {
                       <span>Test Cases</span>
                       <span className="testcase-summary">
                         {testResults
-                          ? `${testResults.filter((tc) => tc.passed).length}/${
-                              testResults.length
-                            } Passed`
+                          ? `${testResults.filter((tc) => tc.passed).length}/${testResults.length
+                          } Passed`
                           : `${questionTestCases.length} Pending`}
                       </span>
                     </div>
@@ -1160,8 +1188,8 @@ function Exam() {
 
             <div className="coding-footer">
               <div style={{ display: "flex", gap: "12px" }}>
-                { (section === "B" || section === "C") && (
-                  <button 
+                {(section === "B" || section === "C") && (
+                  <button
                     onClick={handlePreviousSection}
                     style={{ background: "#334155" }}
                   >

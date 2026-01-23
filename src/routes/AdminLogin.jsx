@@ -234,6 +234,8 @@ function AdminLogin() {
                   setId(e.target.value);
                   setError("");
                 }}
+                name="admin_login_id"
+                autoComplete="off"
                 placeholder="Enter Admin ID"
                 required
                 style={{
@@ -277,6 +279,8 @@ function AdminLogin() {
                   setPassword(e.target.value);
                   setError("");
                 }}
+                name="admin_login_password"
+                autoComplete="off"
                 placeholder="Enter Password"
                 required
                 style={{

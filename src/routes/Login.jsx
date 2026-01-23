@@ -4,13 +4,24 @@ import { useNavigate } from "react-router-dom";
 function Login() {
   const [id, setId] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const API_BASE = window.location.hostname === "localhost" ? "http://localhost:5000" : (process.env.REACT_APP_API_URL || "https://code-a-thon.onrender.com");
 
-
-
+  const inputStyle = (isError) => ({
+    width: "100%",
+    padding: "14px 16px",
+    background: "#1a1f3a",
+    border: isError ? "2px solid #ef4444" : "2px solid #2d3748",
+    borderRadius: "10px",
+    color: "#ffffff",
+    fontSize: "16px",
+    outline: "none",
+    transition: "all 0.3s ease",
+  });
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -20,7 +31,7 @@ function Login() {
       const res = await fetch(`${API_BASE}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ candidateId: id, password }),
+        body: JSON.stringify({ candidateId: id, password, name, email }),
       });
 
       if (!res.ok) {
@@ -35,6 +46,7 @@ function Login() {
       localStorage.removeItem("disqualified");
       localStorage.removeItem("exam_answers");
       localStorage.removeItem("exam_code");
+      localStorage.removeItem("exam_section_timers");
 
       // Persist candidate identity
       localStorage.setItem("candidate_id", data.candidate?.id || id);
@@ -159,20 +171,20 @@ function Login() {
             }}
           />
           <div
-  style={{
-    marginTop: "40px",
-    fontSize: "20px",
-    color: "rgba(0, 0, 0, 0.85)",
-    lineHeight: "1.8",
-    maxWidth: "480px",
-    textAlign: "center",     // center the paragraph
-    marginLeft: "auto",      // keep center alignment inside flex container
-    marginRight: "auto",
-  }}
->
-  Test your coding skills, logical reasoning, and problem-solving abilities
-  in a secure, proctored environment.
-</div>
+            style={{
+              marginTop: "40px",
+              fontSize: "20px",
+              color: "rgba(0, 0, 0, 0.85)",
+              lineHeight: "1.8",
+              maxWidth: "480px",
+              textAlign: "center",     // center the paragraph
+              marginLeft: "auto",      // keep center alignment inside flex container
+              marginRight: "auto",
+            }}
+          >
+            Test your coding skills, logical reasoning, and problem-solving abilities
+            in a secure, proctored environment.
+          </div>
 
         </div>
       </div>
@@ -246,8 +258,56 @@ function Login() {
             Login to continue your assessment
           </p>
 
-      <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: "24px" }}>
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: "20px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  color: "#e2e8f0",
+                  marginBottom: "8px",
+                }}
+              >
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                name="candidate_full_name"
+                autoComplete="off"
+                placeholder="Enter your full name"
+                required
+                style={inputStyle(error)}
+              />
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  color: "#e2e8f0",
+                  marginBottom: "8px",
+                }}
+              >
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                name="candidate_email"
+                autoComplete="off"
+                placeholder="Enter your email"
+                required
+                style={inputStyle(error)}
+              />
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
               <label
                 style={{
                   display: "block",
@@ -259,26 +319,18 @@ function Login() {
               >
                 Candidate ID
               </label>
-        <input
-          type="text"
-          value={id}
+              <input
+                type="text"
+                value={id}
                 onChange={(e) => {
                   setId(e.target.value);
                   setError("");
                 }}
+                name="candidate_login_id"
+                autoComplete="off"
                 placeholder="Enter your candidate ID"
-          required
-                style={{
-                  width: "100%",
-                  padding: "14px 16px",
-                  background: "#1a1f3a",
-                  border: error ? "2px solid #ef4444" : "2px solid #2d3748",
-                  borderRadius: "10px",
-                  color: "#ffffff",
-                  fontSize: "16px",
-                  outline: "none",
-                  transition: "all 0.3s ease",
-                }}
+                required
+                style={inputStyle(error)}
                 onFocus={(e) => {
                   e.target.style.borderColor = "#667eea";
                   e.target.style.background = "#1f2542";
@@ -302,26 +354,18 @@ function Login() {
               >
                 Password
               </label>
-        <input
-          type="password"
-          value={password}
+              <input
+                type="password"
+                value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
                   setError("");
                 }}
+                name="candidate_login_password"
+                autoComplete="off"
                 placeholder="Enter your password"
-          required
-                style={{
-                  width: "100%",
-                  padding: "14px 16px",
-                  background: "#1a1f3a",
-                  border: error ? "2px solid #ef4444" : "2px solid #2d3748",
-                  borderRadius: "10px",
-                  color: "#ffffff",
-                  fontSize: "16px",
-                  outline: "none",
-                  transition: "all 0.3s ease",
-                }}
+                required
+                style={inputStyle(error)}
                 onFocus={(e) => {
                   e.target.style.borderColor = "#667eea";
                   e.target.style.background = "#1f2542";
@@ -330,7 +374,7 @@ function Login() {
                   e.target.style.borderColor = error ? "#ef4444" : "#2d3748";
                   e.target.style.background = "#1a1f3a";
                 }}
-        />
+              />
             </div>
 
             {error && (
@@ -388,7 +432,7 @@ function Login() {
             </button>
 
 
-      </form>
+          </form>
         </div>
       </div>
 

@@ -56,6 +56,15 @@ const resultSchema = new mongoose.Schema({
 });
 const Result = mongoose.model("Result", resultSchema);
 
+// ✅ Define Candidate Profile Schema (STORING NAME/EMAIL SEPARATELY)
+const candidateProfileSchema = new mongoose.Schema({
+  candidateId: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+});
+const CandidateProfile = mongoose.model("CandidateProfile", candidateProfileSchema);
+
 // ✅ Define Exam, Section, and Question Schemas
 const questionSchema = new mongoose.Schema({
   id: { type: String, required: true },
@@ -141,9 +150,9 @@ seedUsers();
 app.post("/api/submit", async (req, res) => {
   try {
     const { candidateId, section, questionId, answers, reviews, code, language, score, disqualified, warningCount, output } = req.body;
-    
+
     console.log("📩 Incoming submission:", req.body);
-    
+
     if (!candidateId || !section) {
       return res.status(400).json({ error: "candidateId and section are required" });
     }
@@ -202,7 +211,7 @@ app.post("/api/submit", async (req, res) => {
     await result.save();
 
     console.log(`✅ Result updated for candidate ${candidateId}, section ${section}`);
-    res.status(200).json({ 
+    res.status(200).json({
       message: "Result saved successfully",
       totalScore: result.totalScore,
       sectionsCompleted: result.sectionsCompleted
@@ -216,7 +225,7 @@ app.post("/api/submit", async (req, res) => {
 // ✅ Login route
 app.post("/api/login", async (req, res) => {
   try {
-    const { candidateId, password } = req.body;
+    const { candidateId, password, name, email } = req.body;
 
     if (!candidateId || !password) {
       return res
@@ -229,6 +238,15 @@ app.post("/api/login", async (req, res) => {
 
     if (!user || user.password !== password) {
       return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // ✅ Store/Update Candidate Profile (Name and Email) in separate collection
+    if (name && email) {
+      await CandidateProfile.findOneAndUpdate(
+        { candidateId },
+        { name, email },
+        { upsert: true }
+      );
     }
 
     res.status(200).json({
@@ -244,14 +262,54 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// ✅ Get all results (for admin/viewing results)
+// ✅ Get all results (for admin/viewing results) with Profile info
 app.get("/api/results", async (req, res) => {
   try {
-    const results = await Result.find().sort({ totalScore: -1, timestamp: 1 });
+    // 🔗 Join Result with CandidateProfile
+    const results = await Result.aggregate([
+      {
+        $lookup: {
+          from: "candidateprofiles", // MongoDB collection name (plural/lowercase of model Name)
+          localField: "candidateId",
+          foreignField: "candidateId",
+          as: "profile"
+        }
+      },
+      {
+        $unwind: {
+          path: "$profile",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      { $sort: { totalScore: -1, updatedAt: -1 } }
+    ]);
     res.status(200).json(results);
   } catch (err) {
     console.error("Error fetching results:", err);
     res.status(500).json({ error: "Failed to fetch results" });
+  }
+});
+
+// ✅ Delete result by candidate ID (Admin only action)
+app.delete("/api/results/:candidateId", async (req, res) => {
+  try {
+    const { candidateId } = req.params;
+
+    // 1️⃣ Delete aggregated results
+    const deletedResult = await Result.findOneAndDelete({ candidateId });
+
+    // 2️⃣ Delete all individual submissions (code runs)
+    await Submission.deleteMany({ candidateId });
+
+    if (!deletedResult) {
+      return res.status(404).json({ error: "Result not found for this candidate" });
+    }
+
+    console.log(`🗑️ Deleted results and submissions for candidate: ${candidateId}`);
+    res.status(200).json({ message: "Candidate results deleted successfully. They can now retake the test." });
+  } catch (err) {
+    console.error("❌ Error deleting candidate result:", err);
+    res.status(500).json({ error: "Failed to delete result", details: err.message });
   }
 });
 
@@ -298,7 +356,7 @@ app.post("/api/admin/exams", async (req, res) => {
   try {
     console.log("📩 Incoming Create Exam request:", JSON.stringify(req.body, null, 2));
     const { title, description, sections } = req.body;
-    
+
     // If setting this exam as active, deactivate others
     if (req.body.isActive) {
       await Exam.updateMany({}, { isActive: false });
@@ -332,7 +390,7 @@ app.put("/api/admin/exams/:id", async (req, res) => {
   try {
     console.log(`📩 Incoming Update Exam request for ID: ${req.params.id}`, JSON.stringify(req.body, null, 2));
     const { title, description, sections, isActive } = req.body;
-    
+
     if (isActive) {
       await Exam.updateMany({ _id: { $ne: req.params.id } }, { isActive: false });
     }
@@ -342,7 +400,7 @@ app.put("/api/admin/exams/:id", async (req, res) => {
       { title, description, sections, isActive },
       { new: true }
     );
-    
+
     if (!updatedExam) return res.status(404).json({ error: "Exam not found" });
     res.status(200).json(updatedExam);
   } catch (err) {

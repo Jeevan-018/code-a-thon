@@ -29,6 +29,22 @@ const ResultsDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const handleDeleteResult = async (candidateId) => {
+    if (!window.confirm(`Are you sure you want to delete all results for candidate ${candidateId}? This action cannot be undone and will allow them to retake the test.`)) {
+      return;
+    }
+
+    try {
+      const API_BASE = window.location.hostname === "localhost" ? "http://localhost:5000" : (process.env.REACT_APP_API_URL || "https://code-a-thon.onrender.com");
+      await axios.delete(`${API_BASE}/api/results/${candidateId}`);
+      alert("Result deleted successfully.");
+      fetchResults(); // Refresh list
+    } catch (err) {
+      console.error("Error deleting result:", err);
+      alert("Failed to delete result. Please try again.");
+    }
+  };
+
   const filteredResults = results.filter((result) => {
     if (!selectedDate) return false;
     const resultDate = new Date(result.updatedAt).toLocaleDateString("en-CA"); // YYYY-MM-DD
@@ -50,8 +66,10 @@ const ResultsDashboard = () => {
 
   const downloadCSV = () => {
     if (filteredResults.length === 0) return;
-    const headers = ["Candidate ID", "Disqualified", "Warnings", "Section A", "Section B", "Section C", "Total Score", "Last Updated"];
+    const headers = ["Name", "Email", "Candidate ID", "Disqualified", "Warnings", "Section A", "Section B", "Section C", "Total Score", "Last Updated"];
     const rows = filteredResults.map(r => [
+      r.profile?.name || "N/A",
+      r.profile?.email || "N/A",
       r.candidateId,
       r.disqualified ? "Yes" : "No",
       r.warningCount || 0,
@@ -62,7 +80,7 @@ const ResultsDashboard = () => {
       new Date(r.updatedAt).toLocaleString()
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," 
+    const csvContent = "data:text/csv;charset=utf-8,"
       + headers.join(",") + "\n"
       + rows.map(e => e.join(",")).join("\n");
 
@@ -204,6 +222,7 @@ const ResultsDashboard = () => {
                 <thead>
                   <tr style={{ textAlign: "left", color: "#a0aec0", fontSize: "0.9rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
 
+                    <th style={{ padding: "1rem" }}>Candidate Info</th>
                     <th style={{ padding: "1rem" }}>Candidate ID</th>
                     <th style={{ padding: "1rem" }}>Disqualified</th>
                     <th style={{ padding: "1rem" }}>Warnings</th>
@@ -212,13 +231,13 @@ const ResultsDashboard = () => {
                     <th style={{ padding: "1rem" }}>Sec C</th>
                     <th style={{ padding: "1rem" }}>Total</th>
                     <th style={{ padding: "1rem" }}>Last Updated</th>
-                    <th style={{ padding: "1rem" }}>Reviews</th>
+                    <th style={{ padding: "1rem" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredResults.length === 0 ? (
                     <tr>
-                      <td colSpan={8} style={{ padding: "3rem", textAlign: "center", color: "#a0aec0" }}>
+                      <td colSpan={10} style={{ padding: "3rem", textAlign: "center", color: "#a0aec0" }}>
                         No results found for {selectedDate}.
                       </td>
                     </tr>
@@ -226,71 +245,89 @@ const ResultsDashboard = () => {
                     filteredResults.map((result) => (
                       <React.Fragment key={result._id}>
                         <tr style={{ background: "#2d3748", transition: "transform 0.2s" }} className="table-row">
-                        <td style={cellStyleFirst}>
-                          {result.candidateId}
-                        </td>
-                        <td style={cellStyle}>
-                           <span style={{ 
-                             color: result.disqualified ? "#ff4444" : "#4caf50", 
-                             fontWeight: "bold",
-                             padding: "4px 8px",
-                             borderRadius: "4px",
-                             background: result.disqualified ? "rgba(255, 68, 68, 0.1)" : "rgba(76, 175, 80, 0.1)"
-                           }}>
-                             {result.disqualified ? "Yes" : "No"}
-                           </span>
-                        </td>
-                        <td style={cellStyle}>
-                          <span style={{ color: result.warningCount > 0 ? "#ff4444" : "#a0aec0", fontWeight: "bold" }}>
-                            {result.warningCount || 0}
-                          </span>
-                        </td>
-                        <td style={cellStyle}>{result.answers?.sectionScores?.["A"] !== undefined ? result.answers.sectionScores["A"] : "-"}</td>
-                        <td style={cellStyle}>{result.answers?.sectionScores?.["B"] !== undefined ? result.answers.sectionScores["B"] : "-"}</td>
-                        <td style={cellStyle}>{result.answers?.sectionScores?.["C"] !== undefined ? result.answers.sectionScores["C"] : "-"}</td>
-                        <td style={{ ...cellStyle, fontWeight: "bold", color: "#4caf50" }}>{result.totalScore}</td>
-                        <td style={cellStyleLast}>{new Date(result.updatedAt).toLocaleTimeString()}</td>
-                        <td style={{ padding: "1rem" }}>
-                          <button
-                            onClick={() => setExpandedRow(expandedRow === result._id ? null : result._id)}
-                            style={{
-                              padding: "6px 12px",
-                              background: expandedRow === result._id ? "#4a5568" : "#667eea",
-                              color: "white",
-                              border: "none",
+                          <td style={cellStyleFirst}>
+                            <div style={{ fontWeight: "700", color: "#667eea" }}>{result.profile?.name || "N/A"}</div>
+                            <div style={{ fontSize: "0.75rem", opacity: 0.7 }}>{result.profile?.email || "N/A"}</div>
+                          </td>
+                          <td style={cellStyle}>
+                            {result.candidateId}
+                          </td>
+                          <td style={cellStyle}>
+                            <span style={{
+                              color: result.disqualified ? "#ff4444" : "#4caf50",
+                              fontWeight: "bold",
+                              padding: "4px 8px",
                               borderRadius: "4px",
-                              cursor: "pointer",
-                              fontSize: "0.8rem"
-                            }}
-                          >
-                            {expandedRow === result._id ? "Close" : "View"}
-                          </button>
-                        </td>
-                      </tr>
-                      {expandedRow === result._id && (
-                        <tr>
-                          <td colSpan={9} style={{ padding: "0 1.5rem 1.5rem" }}>
-                            <div style={{ background: "#1f2937", borderRadius: "8px", padding: "1.5rem", border: "1px solid #374151" }}>
-                              <h4 style={{ margin: "0 0 1rem", color: "#667eea" }}>Candidate Reviews & Doubts</h4>
-                              { !result.reviews || Object.keys(result.reviews).length === 0 ? (
-                                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>No reviews submitted by this candidate.</p>
-                              ) : (
-                                Object.entries(result.reviews).map(([section, sectionReviews]) => (
-                                  <div key={section} style={{ marginBottom: "1rem" }}>
-                                    <h5 style={{ margin: "0 0 0.5rem", color: "#a0aec0" }}>Section {section}</h5>
-                                    {Object.entries(sectionReviews).map(([qid, text]) => (
-                                      <div key={qid} style={{ padding: "8px 12px", background: "#111827", borderRadius: "6px", marginBottom: "4px", fontSize: "0.9rem" }}>
-                                        <span style={{ color: "#667eea", fontWeight: "600", marginRight: "8px" }}>Question {qid}:</span>
-                                        <span style={{ color: "#e5e7eb" }}>{text}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ))
-                              )}
-                            </div>
+                              background: result.disqualified ? "rgba(255, 68, 68, 0.1)" : "rgba(76, 175, 80, 0.1)"
+                            }}>
+                              {result.disqualified ? "Yes" : "No"}
+                            </span>
+                          </td>
+                          <td style={cellStyle}>
+                            <span style={{ color: result.warningCount > 0 ? "#ff4444" : "#a0aec0", fontWeight: "bold" }}>
+                              {result.warningCount || 0}
+                            </span>
+                          </td>
+                          <td style={cellStyle}>{result.answers?.sectionScores?.["A"] !== undefined ? result.answers.sectionScores["A"] : "-"}</td>
+                          <td style={cellStyle}>{result.answers?.sectionScores?.["B"] !== undefined ? result.answers.sectionScores["B"] : "-"}</td>
+                          <td style={cellStyle}>{result.answers?.sectionScores?.["C"] !== undefined ? result.answers.sectionScores["C"] : "-"}</td>
+                          <td style={{ ...cellStyle, fontWeight: "bold", color: "#4caf50" }}>{result.totalScore}</td>
+                          <td style={cellStyleLast}>{new Date(result.updatedAt).toLocaleTimeString()}</td>
+                          <td style={{ padding: "1rem", display: "flex", gap: "8px" }}>
+                            <button
+                              onClick={() => setExpandedRow(expandedRow === result._id ? null : result._id)}
+                              style={{
+                                padding: "6px 12px",
+                                background: expandedRow === result._id ? "#4a5568" : "#667eea",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                fontSize: "0.8rem"
+                              }}
+                            >
+                              {expandedRow === result._id ? "Close" : "View"}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteResult(result.candidateId)}
+                              style={{
+                                padding: "6px 12px",
+                                background: "#ef4444",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                fontSize: "0.8rem"
+                              }}
+                            >
+                              Delete
+                            </button>
                           </td>
                         </tr>
-                      )}
+                        {expandedRow === result._id && (
+                          <tr>
+                            <td colSpan={10} style={{ padding: "0 1.5rem 1.5rem" }}>
+                              <div style={{ background: "#1f2937", borderRadius: "8px", padding: "1.5rem", border: "1px solid #374151" }}>
+                                <h4 style={{ margin: "0 0 1rem", color: "#667eea" }}>Candidate Reviews & Doubts</h4>
+                                {!result.reviews || Object.keys(result.reviews).length === 0 ? (
+                                  <p style={{ color: "#9ca3af", fontStyle: "italic" }}>No reviews submitted by this candidate.</p>
+                                ) : (
+                                  Object.entries(result.reviews).map(([section, sectionReviews]) => (
+                                    <div key={section} style={{ marginBottom: "1rem" }}>
+                                      <h5 style={{ margin: "0 0 0.5rem", color: "#a0aec0" }}>Section {section}</h5>
+                                      {Object.entries(sectionReviews).map(([qid, text]) => (
+                                        <div key={qid} style={{ padding: "8px 12px", background: "#111827", borderRadius: "6px", marginBottom: "4px", fontSize: "0.9rem" }}>
+                                          <span style={{ color: "#667eea", fontWeight: "600", marginRight: "8px" }}>Question {qid}:</span>
+                                          <span style={{ color: "#e5e7eb" }}>{text}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
                       </React.Fragment>
                     ))
                   )}
@@ -304,7 +341,7 @@ const ResultsDashboard = () => {
       <footer style={{ padding: "20px", background: "#050714", textAlign: "center", borderTop: "1px solid #1a1f3a" }}>
         <p style={{ margin: 0, color: "#8b92b0" }}>&copy; {new Date().getFullYear()} Code-A-Thon Assessment Platform. All rights reserved.</p>
       </footer>
-      
+
       <style>{`
         .table-row:hover {
           transform: scale(1.01);
