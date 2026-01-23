@@ -107,7 +107,7 @@ function AdminExamManager() {
     const newQuestion = {
       id: `q${section.questions.length + 1}`,
       type: type,
-      marks: type === "MCQ" ? 1 : 10,
+      marks: type === "MCQ" ? 1 : 5,
       ...(type === "MCQ"
         ? { text: "", choices: ["", "", "", ""], answer: 0 }
         : {
@@ -341,7 +341,18 @@ function AdminExamManager() {
                     {examData.sections[activeSectionTab].questions.map((q, qIdx) => (
                       <div key={qIdx} style={styles.questionCard}>
                         <div style={styles.row}>
-                          <strong>Q{qIdx + 1} ({q.type})</strong>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <strong>Q{qIdx + 1} ({q.type})</strong>
+                            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                              <span style={{ fontSize: "12px", color: "#8b92b0" }}>Marks:</span>
+                              <input
+                                type="number"
+                                value={q.marks}
+                                onChange={(e) => handleUpdateQuestion(activeSectionTab, qIdx, "marks", parseInt(e.target.value) || 0)}
+                                style={{ ...styles.smallInput, width: "50px", padding: "4px" }}
+                              />
+                            </div>
+                          </div>
                           <button
                             type="button"
                             onClick={() => handleRemoveQuestion(activeSectionTab, qIdx)}

@@ -190,9 +190,12 @@ function Exam() {
 
       if (sectionId === "C" && customPayload.score === undefined) {
         const sectionCAnswers = payload.answers || {};
+        const sectionCQuestions = sectionsConfig["C"]?.questions || [];
         let totalScoreC = 0;
-        Object.values(sectionCAnswers).forEach((ans) => {
-          if (ans.passed) totalScoreC += 10;
+        sectionCQuestions.forEach((q) => {
+          if (sectionCAnswers[q.id]?.passed) {
+            totalScoreC += (q.marks || 5);
+          }
         });
         payload.score = totalScoreC;
       }
@@ -474,8 +477,10 @@ function Exam() {
 
         // Submit using the explicitly updated object to ensure the last question is included
         let finalSectionCScore = 0;
-        Object.values(updatedSectionC).forEach(ans => {
-          if (ans.passed) finalSectionCScore += 10;
+        questions.forEach(q => {
+          if (updatedSectionC[q.id]?.passed) {
+            finalSectionCScore += (q.marks || 5);
+          }
         });
 
         submitSectionData("C", {
@@ -630,8 +635,10 @@ function Exam() {
 
       // Calculate new total score for Section C
       let totalScoreC = 0;
-      Object.values(updatedSectionC).forEach(ans => {
-        if (ans.passed) totalScoreC += 10;
+      questions.forEach(q => {
+        if (updatedSectionC[q.id]?.passed) {
+          totalScoreC += (q.marks || 5);
+        }
       });
 
       submitSectionData("C", {
