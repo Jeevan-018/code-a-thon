@@ -398,7 +398,7 @@ function Login() {
               type="submit"
               disabled={loading}
               style={{
-                width: "109%",
+                width: "100%",
                 padding: "15px",
                 background: loading
                   ? "#4a5568"

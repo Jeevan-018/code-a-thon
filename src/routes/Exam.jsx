@@ -26,7 +26,7 @@ function Exam() {
   const location = useLocation();
   const initialSectionRef = useRef(getSectionFromSearch(location.search));
   const [section, setSection] = useState(initialSectionRef.current);
-  const [timeLeft, setTimeLeft] = useState(30 * 60); // Default placeholder
+  const [timeLeft, setTimeLeft] = useState(null); // Initialized to null to avoid premature localStorage pollution
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState(() => {
     const saved = localStorage.getItem("exam_answers");
@@ -285,7 +285,10 @@ function Exam() {
   // ===============================
   // Timer logic
   // ===============================
+  const isTimerInitialized = timeLeft !== null;
+
   useEffect(() => {
+    if (!isTimerInitialized) return;
     const timer = setInterval(() => {
       setTimeLeft((t) => {
         if (t <= 1) {
@@ -299,11 +302,11 @@ function Exam() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [section]);
+  }, [section, isTimerInitialized]);
 
   // Sync current section timer
   useEffect(() => {
-    if (section && timeLeft !== undefined) {
+    if (section && timeLeft !== undefined && timeLeft !== null) {
       setSectionTimers((prev) => ({
         ...prev,
         [section]: timeLeft,
@@ -328,6 +331,7 @@ function Exam() {
 
   // Format time display
   const formatTime = (s) => {
+    if (s === null || s === undefined) return "--:--";
     const m = Math.floor(s / 60);
     const sec = s % 60;
     return `${m}:${sec.toString().padStart(2, "0")}`;

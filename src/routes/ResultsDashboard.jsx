@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import "../styles.css";
@@ -9,6 +10,7 @@ const ResultsDashboard = () => {
   const [error, setError] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString("en-CA"));
   const [expandedRow, setExpandedRow] = useState(null);
+  const navigate = useNavigate();
 
   const fetchResults = async () => {
     try {
@@ -99,7 +101,7 @@ const ResultsDashboard = () => {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#0a0e27", color: "#fff", fontFamily: "'Inter', sans-serif", position: "relative" }}>
       <button
-        onClick={() => window.location.href = "/login"}
+        onClick={() => navigate("/login")}
         style={{
           position: "absolute",
           top: "20px",
@@ -123,7 +125,7 @@ const ResultsDashboard = () => {
         <h1 style={{ margin: "0", fontSize: "2.5rem", fontWeight: "800", textShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>Code-A-Thon</h1>
         <p style={{ margin: "5px 0 0", opacity: 0.9 }}>Admin Dashboard</p>
         <button
-          onClick={() => (window.location.href = "/admin/exams")}
+          onClick={() => navigate("/admin/exams")}
           style={{
             position: "absolute",
             bottom: "10px",
