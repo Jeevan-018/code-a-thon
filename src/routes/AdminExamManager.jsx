@@ -111,10 +111,10 @@ function AdminExamManager() {
       ...(type === "MCQ"
         ? { text: "", choices: ["", "", "", ""], answer: 0 }
         : {
-            problemStatement: "",
-            supportedLanguages: ["Python", "Java", "C", "C++"],
-            testCases: [{ input: "", expectedOutput: "", isVisible: true }],
-          }),
+          problemStatement: "",
+          supportedLanguages: ["Python", "Java", "C", "C++"],
+          testCases: [{ input: "", expectedOutput: "", isVisible: true }],
+        }),
     };
     const updatedSections = [...examData.sections];
     updatedSections[sectionIndex].questions.push(newQuestion);
@@ -133,7 +133,7 @@ function AdminExamManager() {
     const updatedSections = [...examData.sections];
     updatedSections[sectionIndex] = {
       ...updatedSections[sectionIndex],
-      questions: updatedSections[sectionIndex].questions.map((q, i) => 
+      questions: updatedSections[sectionIndex].questions.map((q, i) =>
         i === questionIndex ? { ...q, [field]: value } : q
       )
     };
@@ -144,12 +144,12 @@ function AdminExamManager() {
     const updatedSections = [...examData.sections];
     updatedSections[sectionIndex] = {
       ...updatedSections[sectionIndex],
-      questions: updatedSections[sectionIndex].questions.map((q, i) => 
-        i === questionIndex 
-          ? { 
-              ...q, 
-              choices: q.choices.map((c, ci) => ci === choiceIndex ? value : c) 
-            } 
+      questions: updatedSections[sectionIndex].questions.map((q, i) =>
+        i === questionIndex
+          ? {
+            ...q,
+            choices: q.choices.map((c, ci) => ci === choiceIndex ? value : c)
+          }
           : q
       )
     };
@@ -178,12 +178,12 @@ function AdminExamManager() {
     const updatedSections = [...examData.sections];
     updatedSections[sectionIndex] = {
       ...updatedSections[sectionIndex],
-      questions: updatedSections[sectionIndex].questions.map((q, i) => 
-        i === questionIndex 
-          ? { 
-              ...q, 
-              testCases: q.testCases.map((tc, tci) => tci === testCaseIndex ? { ...tc, [field]: value } : tc) 
-            } 
+      questions: updatedSections[sectionIndex].questions.map((q, i) =>
+        i === questionIndex
+          ? {
+            ...q,
+            testCases: q.testCases.map((tc, tci) => tci === testCaseIndex ? { ...tc, [field]: value } : tc)
+          }
           : q
       )
     };
@@ -250,6 +250,13 @@ function AdminExamManager() {
                 placeholder="Brief description of the exam"
                 style={styles.textarea}
               />
+            </div>
+
+            <div style={{ marginBottom: "24px", padding: "12px", background: "rgba(102, 126, 234, 0.1)", borderRadius: "8px", border: "1px solid rgba(102, 126, 234, 0.3)" }}>
+              <span style={{ color: "#667eea", fontWeight: "600" }}>Total Exam Duration: </span>
+              <span style={{ fontSize: "18px", fontWeight: "700" }}>
+                {Math.round(examData.sections.reduce((acc, s) => acc + (s.duration || 0), 0) / 60)} mins
+              </span>
             </div>
 
             <div style={styles.sectionManager}>

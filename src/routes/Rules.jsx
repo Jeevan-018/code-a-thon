@@ -7,19 +7,37 @@ function Rules() {
   const [agree, setAgree] = useState(false);
   const navigate = useNavigate();
 
+  const [totalDuration, setTotalDuration] = useState(null);
+  const API_BASE = window.location.hostname === "localhost" ? "http://localhost:5000" : (process.env.REACT_APP_API_URL || "https://code-a-thon.onrender.com");
+
   useEffect(() => {
     const candidateId = localStorage.getItem("candidate_id");
     if (!candidateId) {
       navigate("/login", { replace: true });
     }
-  }, [navigate]);
+
+    const fetchActiveExam = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/exam/active`);
+        if (res.ok) {
+          const data = await res.json();
+          // sum sections.duration (in seconds)
+          const totalSeconds = data.sections.reduce((acc, s) => acc + (s.duration || 0), 0);
+          setTotalDuration(Math.round(totalSeconds / 60)); // convert to minutes
+        }
+      } catch (err) {
+        console.error("Failed to fetch active exam:", err);
+      }
+    };
+    fetchActiveExam();
+  }, [navigate, API_BASE]);
 
   const handleStart = () => {
     if (!agree) {
       alert("⚠️ Please agree to the rules before starting the test.");
       return;
     }
-    
+
     // Request full screen
     if (document.documentElement.requestFullscreen) {
       document.documentElement.requestFullscreen().catch((err) => {
@@ -73,21 +91,21 @@ function Rules() {
         }}
       />
 
-<div
-  style={{
-    background: "rgba(26, 31, 58, 0.85)",
-    backdropFilter: "blur(16px)",
-    borderRadius: "18px",
-    padding: "20px 20px",       // reduced inner gap
-    maxWidth: "780px",          // widened frame
-    width: "90%",               // responsive
-    textAlign: "center",
-    boxShadow: "0 18px 48px rgba(0, 0, 0, 0.45)",
-    border: "1px solid rgba(255, 255, 255, 0.08)",
-    position: "relative",
-    zIndex: 1,
-  }}
->
+      <div
+        style={{
+          background: "rgba(26, 31, 58, 0.85)",
+          backdropFilter: "blur(16px)",
+          borderRadius: "18px",
+          padding: "20px 20px",       // reduced inner gap
+          maxWidth: "780px",          // widened frame
+          width: "90%",               // responsive
+          textAlign: "center",
+          boxShadow: "0 18px 48px rgba(0, 0, 0, 0.45)",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
 
         <h2
           style={{
@@ -114,7 +132,7 @@ function Rules() {
           <li style={{ marginBottom: "12px" }}>Copy/Paste is disabled in the coding section.</li>
           <li style={{ marginBottom: "12px" }}>Each section has a timer and auto-submits when time ends.</li>
           <li style={{ marginBottom: "12px" }}>
-            Total Exam Duration: <strong style={{ color: "#667eea" }}>110 mins</strong>.
+            Total Exam Duration: <strong style={{ color: "#667eea" }}>{totalDuration !== null ? totalDuration : "--"} mins</strong>.
           </li>
           <li style={{ marginBottom: "12px" }}>Once submitted, you cannot reattempt.</li>
         </ul>
