@@ -348,12 +348,18 @@ function AdminExamManager() {
                             <strong>Q{qIdx + 1} ({q.type})</strong>
                             <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
                               <span style={{ fontSize: "12px", color: "#8b92b0" }}>Marks:</span>
-                              <input
-                                type="number"
-                                value={q.marks}
-                                onChange={(e) => handleUpdateQuestion(activeSectionTab, qIdx, "marks", parseInt(e.target.value) || 0)}
-                                style={{ ...styles.smallInput, width: "50px", padding: "4px" }}
-                              />
+                              {q.type === "MCQ" ? (
+                                <input
+                                  type="number"
+                                  value={q.marks}
+                                  onChange={(e) => handleUpdateQuestion(activeSectionTab, qIdx, "marks", parseInt(e.target.value) || 0)}
+                                  style={{ ...styles.smallInput, width: "50px", padding: "4px" }}
+                                />
+                              ) : (
+                                <span style={{ fontSize: "12px", color: "#48bb78", fontWeight: "600" }}>
+                                  ({q.testCases?.length || 0} Test Cases = {q.testCases?.length || 0} Marks)
+                                </span>
+                              )}
                             </div>
                           </div>
                           <button

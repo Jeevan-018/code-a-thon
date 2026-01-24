@@ -220,8 +220,10 @@ function Exam() {
         const sectionCQuestions = sectionsConfig["C"]?.questions || [];
         let totalScoreC = 0;
         sectionCQuestions.forEach((q) => {
-          if (sectionCAnswers[q.id]?.passed) {
-            totalScoreC += (q.marks || 5);
+          const qAns = sectionCAnswers[q.id];
+          if (qAns && qAns.testResults) {
+            // Count passed test cases for this question
+            totalScoreC += qAns.testResults.filter(r => r.passed).length;
           }
         });
         payload.score = totalScoreC;
@@ -295,7 +297,10 @@ function Exam() {
         return;
       }
 
-      if (e.metaKey || e.altKey || e.key === "F12" || (e.ctrlKey && e.key === "r")) {
+      const isZoomKey = (e.key === "+" || e.key === "=" || e.key === "-" || e.key === "_" || e.key === "0");
+      const isBrowserZoom = (e.ctrlKey || e.metaKey) && isZoomKey;
+
+      if (!isBrowserZoom && (e.metaKey || e.altKey || e.key === "F12" || (e.ctrlKey && e.key === "r"))) {
         e.preventDefault();
         handleViolation("⚠️ Shortcut keys are disabled during the test.");
       }
@@ -504,8 +509,9 @@ function Exam() {
         // Submit using the explicitly updated object to ensure the last question is included
         let finalSectionCScore = 0;
         questions.forEach(q => {
-          if (updatedSectionC[q.id]?.passed) {
-            finalSectionCScore += (q.marks || 5);
+          const qAns = updatedSectionC[q.id];
+          if (qAns && qAns.testResults) {
+            finalSectionCScore += qAns.testResults.filter(r => r.passed).length;
           }
         });
 
@@ -662,8 +668,9 @@ function Exam() {
       // Calculate new total score for Section C
       let totalScoreC = 0;
       questions.forEach(q => {
-        if (updatedSectionC[q.id]?.passed) {
-          totalScoreC += (q.marks || 5);
+        const qAns = updatedSectionC[q.id];
+        if (qAns && qAns.testResults) {
+          totalScoreC += qAns.testResults.filter(r => r.passed).length;
         }
       });
 
@@ -1174,6 +1181,7 @@ function Exam() {
                       contextmenu: false, // Disable right-click context menu
                       dragAndDrop: false, // Disable drag and drop of text
                       links: false,
+                      mouseWheelZoom: true, // Allow zooming with Ctrl + Scroll
                     }}
                   />
                 </div>
