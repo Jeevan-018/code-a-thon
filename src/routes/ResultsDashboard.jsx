@@ -6,20 +6,26 @@ import "../styles.css";
 
 const ResultsDashboard = () => {
   const [results, setResults] = useState([]);
+  const [exams, setExams] = useState([]);
+  const [selectedExamId, setSelectedExamId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString("en-CA"));
+  const [selectedDate, setSelectedDate] = useState("");
   const [expandedRow, setExpandedRow] = useState(null);
   const navigate = useNavigate();
 
   const fetchResults = async () => {
     try {
       const API_BASE = window.location.hostname === "localhost" ? "http://localhost:5000" : (process.env.REACT_APP_API_URL || "https://code-a-thon.onrender.com");
-      const response = await axios.get(`${API_BASE}/api/results`);
-      setResults(response.data);
+      const [resultsRes, examsRes] = await Promise.all([
+        axios.get(`${API_BASE}/api/results`),
+        axios.get(`${API_BASE}/api/admin/exams`)
+      ]);
+      setResults(resultsRes.data);
+      setExams(examsRes.data);
       setLoading(false);
     } catch (err) {
-      console.error("Error fetching results:", err);
+      console.error("Error fetching data:", err);
       setError("Failed to load results. Please make sure the backend is running.");
       setLoading(false);
     }
@@ -30,6 +36,7 @@ const ResultsDashboard = () => {
     const interval = setInterval(fetchResults, 30000);
     return () => clearInterval(interval);
   }, []);
+
 
   const handleDeleteResult = async (candidateId) => {
     if (!window.confirm(`Are you sure you want to delete all results for candidate ${candidateId}? This action cannot be undone and will allow them to retake the test.`)) {
@@ -48,9 +55,9 @@ const ResultsDashboard = () => {
   };
 
   const filteredResults = results.filter((result) => {
-    if (!selectedDate) return false;
-    const resultDate = new Date(result.updatedAt).toLocaleDateString("en-CA"); // YYYY-MM-DD
-    return resultDate === selectedDate;
+    const matchesDate = selectedDate ? new Date(result.updatedAt).toLocaleDateString("en-CA") === selectedDate : true;
+    const matchesExam = selectedExamId ? (result.examId && result.examId.toString() === selectedExamId) : true;
+    return matchesDate && matchesExam;
   }).sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
 
   // Calculate Summary Stats
@@ -68,8 +75,9 @@ const ResultsDashboard = () => {
 
   const downloadCSV = () => {
     if (filteredResults.length === 0) return;
-    const headers = ["Name", "Email", "Candidate ID", "Disqualified", "Warnings", "Section A", "Section B", "Section C", "Total Score", "Last Updated"];
+    const headers = ["Exam", "Name", "Email", "Candidate ID", "Disqualified", "Warnings", "Section A", "Section B", "Section C", "Total Score", "Last Updated"];
     const rows = filteredResults.map(r => [
+      r.exam?.title || "N/A",
       r.profile?.name || "N/A",
       r.profile?.email || "N/A",
       r.candidateId,
@@ -99,7 +107,7 @@ const ResultsDashboard = () => {
   if (error) return <div className="container"><h2 className="error-text">{error}</h2></div>;
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#0a0e27", color: "#fff", fontFamily: "'Inter', sans-serif", position: "relative" }}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#0a0e27", color: "#fff", fontFamily: "'Times New Roman', Times, serif", position: "relative" }}>
       <button
         onClick={() => navigate("/login")}
         style={{
@@ -217,6 +225,34 @@ const ResultsDashboard = () => {
                 </ResponsiveContainer>
               </div>
             )}
+
+            {/* Exam Selector */}
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: "2rem", padding: "1rem", background: "#1a1f3a", borderRadius: "12px", border: "1px solid #2d3748" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+                <label style={{ color: "#a0aec0", fontWeight: "600" }}>Filter By Exam:</label>
+                <select
+                  value={selectedExamId}
+                  onChange={(e) => setSelectedExamId(e.target.value)}
+                  style={{
+                    padding: "10px 15px",
+                    borderRadius: "8px",
+                    border: "1px solid #4a5568",
+                    background: "#0a0e27",
+                    color: "#fff",
+                    fontSize: "1rem",
+                    outline: "none",
+                    minWidth: "250px"
+                  }}
+                >
+                  <option value="">All Exams</option>
+                  {exams.map(exam => (
+                    <option key={exam._id} value={exam._id}>
+                      {exam.title} {exam.isActive ? "🟢 (Active)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             {/* Results Table */}
             <div className="results-table-container" style={{ overflowX: "auto", background: "#1a1f3a", borderRadius: "16px", padding: "1.5rem", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)" }}>

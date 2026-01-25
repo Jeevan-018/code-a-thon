@@ -98,6 +98,7 @@ function Exam() {
             config[s.id] = { duration: s.duration, questions: s.questions };
           });
           setSectionsConfig(config);
+          localStorage.setItem("active_exam_id", data._id);
 
           const requestedSection = getSectionFromSearch(location.search);
           if (config[requestedSection]) {
@@ -200,10 +201,12 @@ function Exam() {
   const submitSectionData = useCallback(
     async (sectionId, customPayload = {}) => {
       const candidateId = localStorage.getItem("candidate_id") || "anonymous";
+      const examId = localStorage.getItem("active_exam_id");
       const disqualified = localStorage.getItem("disqualified") === "true";
 
       let payload = {
         candidateId,
+        examId,
         section: sectionId,
         disqualified,
         warningCount: warningCountRef.current,

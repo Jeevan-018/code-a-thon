@@ -24,6 +24,7 @@ function Rules() {
           // sum sections.duration (in seconds)
           const totalSeconds = data.sections.reduce((acc, s) => acc + (s.duration || 0), 0);
           setTotalDuration(Math.round(totalSeconds / 60)); // convert to minutes
+          localStorage.setItem("active_exam_id", data._id);
         }
       } catch (err) {
         console.error("Failed to fetch active exam:", err);

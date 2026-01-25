@@ -33,6 +33,7 @@ const User = mongoose.model("User", userSchema);
 // ✅ Define Submission Schema (EVERY CODE RUN)
 const submissionSchema = new mongoose.Schema({
   candidateId: { type: String, required: true, index: true },
+  examId: { type: mongoose.Schema.Types.ObjectId, ref: "Exam", required: true },
   questionId: { type: String },
   section: { type: String, required: true },
   language: { type: String },
@@ -45,7 +46,8 @@ const Submission = mongoose.model("Submission", submissionSchema);
 
 // ✅ Define Result Schema (AGGREGATED SUMMARY)
 const resultSchema = new mongoose.Schema({
-  candidateId: { type: String, required: true, unique: true },
+  candidateId: { type: String, required: true },
+  examId: { type: mongoose.Schema.Types.ObjectId, ref: "Exam", required: true },
   answers: { type: Object, default: {} },
   warningCount: { type: Number, default: 0 },
   disqualified: { type: Boolean, default: false },
@@ -54,6 +56,10 @@ const resultSchema = new mongoose.Schema({
   reviews: { type: Object, default: {} },
   updatedAt: { type: Date, default: Date.now },
 });
+
+// Compound unique index so a candidate can have one result per exam
+resultSchema.index({ candidateId: 1, examId: 1 }, { unique: true });
+
 const Result = mongoose.model("Result", resultSchema);
 
 // ✅ Define Candidate Profile Schema (STORING NAME/EMAIL SEPARATELY)
@@ -152,17 +158,18 @@ seedUsers();
 // ✅ API route to store/update results
 app.post("/api/submit", async (req, res) => {
   try {
-    const { candidateId, section, questionId, answers, reviews, code, language, score, disqualified, warningCount, output } = req.body;
+    const { candidateId, examId, section, questionId, answers, reviews, code, language, score, disqualified, warningCount, output } = req.body;
 
     console.log("📩 Incoming submission:", req.body);
 
-    if (!candidateId || !section) {
-      return res.status(400).json({ error: "candidateId and section are required" });
+    if (!candidateId || !examId || !section) {
+      return res.status(400).json({ error: "candidateId, examId and section are required" });
     }
 
     // 1️⃣ Save submission (Per-run record)
     await Submission.create({
       candidateId,
+      examId,
       questionId,
       section,
       language,
@@ -203,7 +210,7 @@ app.post("/api/submit", async (req, res) => {
     updateOps.$addToSet = { sectionsCompleted: section };
 
     const result = await Result.findOneAndUpdate(
-      { candidateId },
+      { candidateId, examId },
       updateOps,
       { upsert: true, new: true }
     );
@@ -265,14 +272,14 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// ✅ Get all results (for admin/viewing results) with Profile info
+// ✅ Get all results (for admin/viewing results) with Profile info and Exam title
 app.get("/api/results", async (req, res) => {
   try {
-    // 🔗 Join Result with CandidateProfile
+    // 🔗 Join Result with CandidateProfile and Exam
     const results = await Result.aggregate([
       {
         $lookup: {
-          from: "candidateprofiles", // MongoDB collection name (plural/lowercase of model Name)
+          from: "candidateprofiles",
           localField: "candidateId",
           foreignField: "candidateId",
           as: "profile"
@@ -281,6 +288,20 @@ app.get("/api/results", async (req, res) => {
       {
         $unwind: {
           path: "$profile",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $lookup: {
+          from: "exams",
+          localField: "examId",
+          foreignField: "_id",
+          as: "exam"
+        }
+      },
+      {
+        $unwind: {
+          path: "$exam",
           preserveNullAndEmptyArrays: true
         }
       },
@@ -391,16 +412,22 @@ app.get("/api/admin/exams/:id", async (req, res) => {
 
 app.put("/api/admin/exams/:id", async (req, res) => {
   try {
-    console.log(`📩 Incoming Update Exam request for ID: ${req.params.id}`, JSON.stringify(req.body, null, 2));
+    console.log(`📩 Incoming Update Exam request for ID: ${req.params.id}`);
     const { title, description, sections, isActive } = req.body;
 
-    if (isActive) {
+    if (isActive === true) {
       await Exam.updateMany({ _id: { $ne: req.params.id } }, { isActive: false });
     }
 
+    const updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (sections !== undefined) updateData.sections = sections;
+    if (isActive !== undefined) updateData.isActive = isActive;
+
     const updatedExam = await Exam.findByIdAndUpdate(
       req.params.id,
-      { title, description, sections, isActive },
+      { $set: updateData },
       { new: true }
     );
 
@@ -408,7 +435,7 @@ app.put("/api/admin/exams/:id", async (req, res) => {
     res.status(200).json(updatedExam);
   } catch (err) {
     console.error("Error updating exam:", err);
-    res.status(500).json({ error: "Failed to update exam", details: err.message, stack: err.errors });
+    res.status(500).json({ error: "Failed to update exam", details: err.message });
   }
 });
 

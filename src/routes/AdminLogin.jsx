@@ -30,7 +30,7 @@ function AdminLogin() {
         minHeight: "100vh",
         display: "flex",
         background: "#0a0e27",
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        fontFamily: "'Times New Roman', Times, serif",
         position: "relative",
       }}
     >

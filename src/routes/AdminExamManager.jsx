@@ -203,13 +203,14 @@ function AdminExamManager() {
     }
   };
 
-  const handleSetActive = async (examId) => {
+  const handleToggleActive = async (examId) => {
     try {
       const exam = exams.find((e) => e._id === examId);
-      await axios.put(`${API_BASE}/api/admin/exams/${examId}`, { ...exam, isActive: true });
+      const newStatus = !exam.isActive;
+      await axios.put(`${API_BASE}/api/admin/exams/${examId}`, { ...exam, isActive: newStatus });
       fetchExams();
     } catch (err) {
-      console.error("Error setting active exam:", err);
+      console.error("Error toggling exam status:", err);
     }
   };
 
@@ -530,11 +531,15 @@ function AdminExamManager() {
                     </td>
                     <td style={styles.td}>{new Date(exam.createdAt).toLocaleDateString()}</td>
                     <td style={styles.td}>
-                      {!exam.isActive && (
-                        <button onClick={() => handleSetActive(exam._id)} style={styles.actionButton}>
-                          Set Active
-                        </button>
-                      )}
+                      <button
+                        onClick={() => handleToggleActive(exam._id)}
+                        style={{
+                          ...styles.actionButton,
+                          color: exam.isActive ? "#ef4444" : "#48bb78"
+                        }}
+                      >
+                        {exam.isActive ? "Deactivate" : "Activate"}
+                      </button>
                       <button onClick={() => navigate(`/admin/exams/${exam._id}`)} style={styles.actionButton}>
                         Edit
                       </button>
@@ -562,7 +567,7 @@ const styles = {
     background: "#0a0e27",
     minHeight: "100vh",
     color: "#ffffff",
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "'Times New Roman', Times, serif",
   },
   header: {
     display: "flex",
