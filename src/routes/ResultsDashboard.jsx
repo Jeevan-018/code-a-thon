@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -14,7 +14,7 @@ const ResultsDashboard = () => {
   const [expandedRow, setExpandedRow] = useState(null);
   const navigate = useNavigate();
 
-  const fetchResults = async () => {
+  const fetchResults = useCallback(async () => {
     try {
       const API_BASE = window.location.hostname === "localhost" ? "http://localhost:5000" : (process.env.REACT_APP_API_URL || "https://code-a-thon.onrender.com");
       const [resultsRes, examsRes] = await Promise.all([
@@ -23,26 +23,26 @@ const ResultsDashboard = () => {
       ]);
       setResults(resultsRes.data);
       setExams(examsRes.data);
-
-      // Auto-select the first exam or the active one if none is selected
-      if (examsRes.data.length > 0 && !selectedExamId) {
-        const activeExam = examsRes.data.find(e => e.isActive);
-        setSelectedExamId(activeExam ? activeExam._id : examsRes.data[0]._id);
-      }
-
       setLoading(false);
     } catch (err) {
       console.error("Error fetching data:", err);
       setError("Failed to load results. Please make sure the backend is running.");
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchResults();
     const interval = setInterval(fetchResults, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchResults]);
+
+  useEffect(() => {
+    if (exams.length > 0 && !selectedExamId) {
+      const activeExam = exams.find(e => e.isActive);
+      setSelectedExamId(activeExam ? activeExam._id : exams[0]._id);
+    }
+  }, [exams, selectedExamId]);
 
 
   const handleDeleteResult = async (candidateId) => {
