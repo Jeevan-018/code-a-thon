@@ -23,6 +23,13 @@ const ResultsDashboard = () => {
       ]);
       setResults(resultsRes.data);
       setExams(examsRes.data);
+
+      // Auto-select the first exam or the active one if none is selected
+      if (examsRes.data.length > 0 && !selectedExamId) {
+        const activeExam = examsRes.data.find(e => e.isActive);
+        setSelectedExamId(activeExam ? activeExam._id : examsRes.data[0]._id);
+      }
+
       setLoading(false);
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -244,7 +251,6 @@ const ResultsDashboard = () => {
                     minWidth: "250px"
                   }}
                 >
-                  <option value="">All Exams</option>
                   {exams.map(exam => (
                     <option key={exam._id} value={exam._id}>
                       {exam.title} {exam.isActive ? "🟢 (Active)" : ""}
